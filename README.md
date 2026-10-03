@@ -16,6 +16,8 @@ The whole game is `index.html`. Artwork by Kevin.
 - `src/sim/` holds simulated players for tuning: `tune.js` (jumps to cross), `order.js` (buying order), `flips.js` and `frameflip.js` (flip bonus and frame spin).
 - `src/test/` holds browser play-tests (Playwright).
 
+The canyon walls below the rim, the cape and the crash ragdoll's joints are drawn or defined in `src/page.html`, not in `art/`.
+
 ## Changing the game
 
 Edit `src/page.html` or `src/core.js`, then run `python3 src/build.py` (needs Pillow). Check the balance with `node src/sim/tune.js`.

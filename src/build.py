@@ -18,6 +18,7 @@ A = {
     'rep1': 'canyon/repeat1_flat.png', 'rep2': 'canyon/repeat2_flat.png', 'rep3': 'canyon/repeat3_flat.png', 'rep4': 'canyon/repeat4_flat.png',
     'sign': 'canyon/sign.png', 'bike': 'scooter/bike.png', 'rider': 'scooter/rider.png', 'bwheel': 'scooter/backwheel.png', 'fwheel': 'scooter/frontwheel.png',
     'frame': 'launcher/meterframe.png', 'red': 'launcher/red_squares.png',
+    'helmet': 'scooter/helmet.png', 'hoodie': 'scooter/hoodie.png', 'pants': 'scooter/pants.png', 'shoe': 'scooter/shoe.png', 'face': 'scooter/facehands.png',
 }
 js = 'const ART = {\n' + ',\n'.join('  %s: "%s"' % (k, b64(os.path.join(ART, v))) for k, v in A.items())
 js += ',\n  icon: "%s"\n};\n' % b64(os.path.join(ART, 'icon.png'), 260)
@@ -25,4 +26,5 @@ core = open(os.path.join(HERE, 'core.js')).read().replace("if (typeof module !==
 body = open(os.path.join(HERE, 'page.html')).read().replace('/*__ART__*/', js).replace('/*__CORE__*/', core)
 HEAD = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body>'
 open(os.path.join(ROOT, 'index.html'), 'w').write(HEAD + body + '</body></html>')
+if os.environ.get('SRJ_BODY'): open(os.environ['SRJ_BODY'], 'w').write(body)  # the page without the html wrapper
 print('built index.html', round(len(body) / 1e6, 2), 'MB')
