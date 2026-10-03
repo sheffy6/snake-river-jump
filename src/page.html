@@ -71,6 +71,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
 .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
 
 .actions { position: sticky; bottom: 0; background: var(--paper); padding-block: 10px; margin-block: -6px -10px; }
+#s-note { font-weight: 700; color: var(--helmet); }
 .pay { display: grid; gap: 2px; font-variant-numeric: tabular-nums; }
 .pay div { display: flex; justify-content: space-between; gap: 12px; }
 .pay div span:last-child { font-weight: 700; }
@@ -109,6 +110,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   #shop .body > * { grid-column: 1; }
   #shop .shophead { grid-column: 2; grid-row: 1; }
   #shop .shop { grid-column: 2; grid-row: 2 / span 3; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-self: start; }
+  #shop #s-note { font-size: 15px; }
   #shop .actions { position: static; margin: 0; padding: 0; align-self: end; }
   .pay { font-size: 16px; }
   .pay .total { font-size: 18px; }
@@ -171,6 +173,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
         <div class="eyebrow" id="s-eyebrow">Jump 1</div>
         <h2 id="s-head">Into the canyon</h2>
         <div class="pay" id="s-pay"></div>
+        <p id="s-note" hidden>You earned the cape. He wears it on every jump from now on.</p>
         <div class="row shophead"><div class="eyebrow">Upgrades</div><div class="chip" id="s-cash">$0</div></div>
         <div class="shop" id="s-shop"></div>
         <div class="row actions"><button class="big" id="again">Jump again</button><button class="quiet" id="reset">Start over</button></div>
@@ -260,7 +263,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       else if (rolling) { f = 50 + sp / 13; g = 0.06; }
       to(engA.frequency, f); to(engB.frequency, f / 2); to(engF.frequency, 280 + sp / 3); to(engG.gain, g);
       const w = air ? Math.min(1, sp / 3400) : 0;
-      to(windG.gain, 0.3 * Math.pow(w, 1.4), 0.12); to(windF.frequency, 350 + sp / 2.2, 0.12);
+      to(windG.gain, 0.09 * Math.pow(w, 1.4), 0.12); to(windF.frequency, 350 + sp / 2.2, 0.12);
       to(rkG.gain, boosting ? 0.32 : 0, 0.04);
     }
     function tone(type, f0, f1, dur, vol, when, slide) {
@@ -414,6 +417,84 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     if (fx.length && fx[0].life > fx[0].max) fx = fx.filter(p => p.life < p.max);
   }
 
+  const hasCape = () => save.won; // the cape is the prize for the first crossing
+  // ---- drawn in code: canyon walls and the cape -----------------------
+  const JAG = [0, 22, 8, 34, 14, 40, 4, 26, 12], JAGH = [210, 150, 260, 120, 190, 240, 140, 170, 230];
+  let walls = null;
+  function buildWalls() {
+    const ROCK = ['#7b7b84', '#6d6d73', '#817f7d', '#74747c', '#6d6d73', '#7b7b84'], LINE = '#3a3a3f', CRACK = '#47474d';
+    const make = seed => {
+      let s = seed; const r = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+      const Wd = 2048, H = 840, c = document.createElement('canvas'); c.width = Wd; c.height = H;
+      const g = c.getContext('2d'); g.lineJoin = 'round'; g.lineCap = 'round';
+      g.fillStyle = ROCK[1]; g.fillRect(0, 0, Wd, H);
+      // column boundaries: wobbly verticals, pinned straight at the tile seam so it repeats cleanly
+      const xs = [0]; while (xs[xs.length - 1] < Wd - 150) xs.push(xs[xs.length - 1] + (r() < 0.16 ? 16 + r() * 14 : 52 + r() * 84)); xs.push(Wd);
+      const TOP = 54, edges = xs.map((x, i) => { const pin = i === 0 || i === xs.length - 1; return [0, 0.3, 0.62, 1].map(u => [x + (pin ? 0 : (r() - 0.5) * 16), TOP + u * (H - TOP)]); });
+      for (let i = 0; i < xs.length - 1; i++) {
+        const L = edges[i], R = edges[i + 1], thin = xs[i + 1] - xs[i] < 32;
+        g.beginPath(); g.moveTo(L[0][0], L[0][1]); for (let k = 1; k < 4; k++) g.lineTo(L[k][0], L[k][1]); for (let k = 3; k >= 0; k--) g.lineTo(R[k][0], R[k][1]); g.closePath();
+        g.fillStyle = thin ? CRACK : ROCK[Math.floor(r() * ROCK.length)]; g.fill();
+        if (thin) continue;
+        // cross joints: the breaks that cut a column into drums
+        g.strokeStyle = LINE; g.lineWidth = 3.5;
+        const n = 1 + Math.floor(r() * 3);
+        for (let k = 0; k < n; k++) {
+          const y = TOP + 40 + r() * (H - TOP - 80), u = (y - TOP) / (H - TOP), at = e => { const q = u < 0.3 ? [0, 1, u / 0.3] : u < 0.62 ? [1, 2, (u - 0.3) / 0.32] : [2, 3, (u - 0.62) / 0.38]; return e[q[0]][0] + (e[q[1]][0] - e[q[0]][0]) * q[2]; };
+          const xl = at(L), xr = at(R), full = r() < 0.55, dy = (r() - 0.5) * 22;
+          g.beginPath(); g.moveTo(xl, y); g.lineTo(full ? xr : xl + (xr - xl) * (0.4 + r() * 0.3), y + dy); g.stroke();
+          if (full && r() < 0.35) { // a drum in a different shade, like the loose blocks in the rim art
+            const h2 = 50 + r() * 90; g.beginPath(); g.moveTo(xl + 3, y); g.lineTo(xr - 3, y + dy); g.lineTo(xr - 3, y + dy + h2); g.lineTo(xl + 3, y + h2 + (r() - 0.5) * 16); g.closePath();
+            g.fillStyle = ROCK[Math.floor(r() * ROCK.length)]; g.fill(); g.stroke();
+          }
+        }
+      }
+      g.strokeStyle = LINE; g.lineWidth = 4.5;
+      for (const e of edges) { g.beginPath(); g.moveTo(e[0][0], e[0][1]); for (let k = 1; k < 4; k++) g.lineTo(e[k][0], e[k][1]); g.stroke(); }
+      // rubble ledge along the top of the tier, where one flow sits on the next
+      g.fillStyle = CRACK; g.fillRect(0, 0, Wd, TOP + 6);
+      let x = -20; const blocks = [];
+      while (x < Wd + 20) { const w = 44 + r() * 86; blocks.push([x, w, 26 + r() * 30, Math.floor(r() * ROCK.length), (r() - 0.5) * 10, (r() - 0.5) * 10]); x += w * (0.72 + r() * 0.2); }
+      const first = blocks[0]; blocks.push([first[0] + Wd, first[1], first[2], first[3], first[4], first[5]]);
+      for (const [bx, w, h, ci, t1, t2] of blocks) {
+        const by = TOP + 12; g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + 5, by - h + t1); g.lineTo(bx + w * 0.55, by - h - 4); g.lineTo(bx + w - 4, by - h + t2 + 5); g.lineTo(bx + w, by); g.closePath();
+        g.fillStyle = ROCK[ci]; g.fill(); g.stroke();
+      }
+      g.beginPath(); g.moveTo(0, 2); g.lineTo(Wd, 2); g.stroke();
+      return c;
+    };
+    walls = [make(11), make(29)];
+  }
+  // Cape: a ribbon pinned at the shoulders. It hangs at rest and streams out behind as speed builds.
+  // lx, ly are the wind direction in the rider's own frame; sp is speed.
+  function drawCape(ax, ay, gx, gy, lx, ly, sp, t) {
+    const k = Math.min(1, sp / 650);
+    let dx = (gx * 0.75 + gy * -0.95) * (1 - k) + lx * k * 1.7, dy = (gy * 0.75 + gx * 0.95) * (1 - k) + ly * k * 1.7; // at rest it drapes back off the shoulders, not straight down
+    const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
+    const nx = -dy, ny = dx, N = 9, LEN = 138, om = 5 + sp / 260, A = 5 + 11 * k;
+    const sp1 = [], L = [], R = [];
+    for (let i = 0; i <= N; i++) {
+      const u = i / N, wv = Math.sin(t * om - i * 0.85) * A * Math.pow(u, 1.3), hw = 17 + 30 * Math.pow(u, 0.8);
+      const px = ax + dx * LEN * u + nx * wv, py = ay + dy * LEN * u + ny * wv;
+      sp1.push([px, py]); L.push([px + nx * hw, py + ny * hw]); R.push([px - nx * hw, py - ny * hw]);
+    }
+    const g = ctx; g.save(); g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(L[0][0], L[0][1]); for (let i = 1; i <= N; i++) g.lineTo(L[i][0], L[i][1]);
+    // scalloped hem
+    const a = L[N], b = R[N]; for (let j = 1; j <= 3; j++) { const u = j / 3, mx = a[0] + (b[0] - a[0]) * (u - 1 / 6), my = a[1] + (b[1] - a[1]) * (u - 1 / 6); g.quadraticCurveTo(mx + dx * 14, my + dy * 14, a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u); }
+    for (let i = N - 1; i >= 0; i--) g.lineTo(R[i][0], R[i][1]); g.closePath();
+    g.fillStyle = '#b8313f'; g.fill();
+    // a darker fold down one side
+    g.save(); g.clip(); g.beginPath(); g.moveTo(R[0][0], R[0][1]); for (let i = 1; i <= N; i++) g.lineTo(R[i][0] + nx * 13, R[i][1] + ny * 13); for (let i = N; i >= 0; i--) g.lineTo(R[i][0] - nx * 6, R[i][1] - ny * 6); g.closePath(); g.fillStyle = '#96222f'; g.fill(); g.restore();
+    g.strokeStyle = '#6e1a24'; g.lineWidth = 3.5; g.stroke();
+    // white star two thirds of the way down
+    const c = sp1[6], d2 = sp1[7]; g.translate(c[0], c[1]); g.rotate(Math.atan2(d2[1] - c[1], d2[0] - c[0]) + Math.PI / 2);
+    g.fillStyle = '#fff'; g.strokeStyle = '#6e1a24'; g.lineWidth = 2.5; starPath(17); g.fill(); g.stroke();
+    g.restore();
+  }
+  const CAPE_AT = [-34, -84]; // shoulder pin, from the centre of mass in sprite pixels
+  let capeWind = { lx: -1, ly: 0, sp: 0 };
+
   // ---- camera ---------------------------------------------------------
   function focus() {
     if (roll) return { x: roll.x, y: roll.y, sp: roll.v };
@@ -448,7 +529,9 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       const im = img[k], [lx, ly] = PARTS[k];
       ctx.save(); ctx.translate(lx, ly); ctx.rotate(spin); ctx.drawImage(im, -im.width / 2, -im.height / 2); ctx.restore();
     }
-    for (const k of ['bike', 'rider']) { const im = img[k], [lx, ly] = PARTS[k]; ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2); }
+    { const im = img.bike, [lx, ly] = PARTS.bike; ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2); }
+    if (hasCape()) drawCape(CAPE_AT[0], CAPE_AT[1], -Math.sin(a), Math.cos(a), capeWind.lx, capeWind.ly, capeWind.sp, performance.now() / 1000);
+    { const im = img.rider, [lx, ly] = PARTS.rider; ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2); }
     ctx.restore();
   }
   function starPath(r) {
@@ -487,18 +570,36 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       let x = REP_X, i = 0;
       while (x < x1) { const k = reps[i % 4]; strip(k, x); x += img[k].width || 1700; i++; }
     }
-    // both cliffs carry on down as stacked basalt courses
+    // both cliffs carry on down as tiers of basalt columns, each tier one lava flow
     const yBot = (Hc - gy) / z;
-    const course = (xa, xb) => {
-      const a = Math.max(xa, x0), b = Math.min(xb, x1); if (a >= b || yBot < BOT) return;
-      g.save(); g.beginPath(); g.rect(a, BOT - 1, b - a, yBot - BOT + 2); g.clip();
-      for (let j = 0, y = BOT - 1; y < yBot && j < 60; j++, y += 125) {
-        let x = xa - ((j * 523) % 1700), i = j;
-        while (x < b) { const im = img[reps[i % 4]]; if (x + im.width > a) g.drawImage(im, x, y, im.width + 1, 128); x += im.width; i++; }
-      }
-      g.restore();
-    };
-    course(0, 4094); course(W.FAR, x1 + 1);
+    if (walls && yBot > BOT) {
+      const TH = walls[0].height - 14;
+      const face = (xa, xb, edge, side) => {
+        const a = Math.max(xa, x0), b = Math.min(xb, x1); if (a >= b) return;
+        g.save(); g.beginPath();
+        if (side) { // ragged edge facing the gap: each run of columns breaks off at a different width
+          const top = BOT - 2, bot = Math.min(yBot + 40, BOT + 6 * TH);
+          g.moveTo(side > 0 ? xb : xa, top);
+          let y = top, i = 0;
+          while (y < bot) { const j = edge + side * JAG[i % JAG.length]; g.lineTo(j, y); y += JAGH[i % JAGH.length]; g.lineTo(j, Math.min(y, bot)); i++; }
+          g.lineTo(side > 0 ? xb : xa, bot); g.closePath();
+        } else g.rect(a, BOT - 2, b - a, yBot - BOT + 4);
+        g.clip();
+        for (let k = 0, y = BOT - 2; y < yBot && k < 6; k++, y += TH) {
+          const im = walls[k % 2], off = (k * 613) % im.width;
+          for (let x = xa - off - (side < 0 ? 0 : 0); x < b; x += im.width) if (x + im.width > a) g.drawImage(im, x, y);
+        }
+        g.restore();
+        if (side) { // outline the ragged edge
+          const top = BOT - 2, bot = Math.min(yBot + 40, BOT + 6 * TH);
+          g.beginPath(); let y = top, i = 0; g.moveTo(edge + side * JAG[0], top);
+          while (y < bot) { const j = edge + side * JAG[i % JAG.length]; g.lineTo(j, y); y += JAGH[i % JAGH.length]; g.lineTo(j, Math.min(y, bot)); i++; }
+          g.strokeStyle = '#3a3a3f'; g.lineWidth = 5; g.lineJoin = 'round'; g.stroke();
+        }
+      };
+      face(0, 4094, 4094, -1);                 // launch cliff, edge on its right
+      face(W.FAR, x1 + 2100, W.FAR, 1);        // landing cliff, edge on its left
+    }
     // the canyon gets darker with depth
     const dk = g.createLinearGradient(0, BOT, 0, BOT + 2600);
     dk.addColorStop(0, 'rgba(30,34,52,0)'); dk.addColorStop(1, 'rgba(30,34,52,0.6)');
@@ -522,7 +623,15 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     }
     g.globalAlpha = 1;
 
-    if (parts.length) for (const p of parts) drawSprite(p.k, p.x, p.y, p.a);
+    if (parts.length) for (const p of parts) {
+      if (p.k === 'rider' && hasCape()) {
+        const c = Math.cos(p.a), s = Math.sin(p.a), sp = Math.hypot(p.vx, p.vy) || 1;
+        ctx.save(); ctx.translate(p.x, -p.y); ctx.rotate(-p.a);
+        drawCape(CAPE_AT[0] - PARTS.rider[0], CAPE_AT[1] - PARTS.rider[1], -s, c, -(p.vx * c + p.vy * s) / sp, -(p.vx * s - p.vy * c) / sp, sp, performance.now() / 1000);
+        ctx.restore();
+      }
+      drawSprite(p.k, p.x, p.y, p.a);
+    }
     else if (roll) drawBike(roll.x, roll.y, roll.a);
     else if (run) drawBike(run.x, run.y, run.a);
     else drawBike(W.START, W.COM_H, 0);
@@ -568,6 +677,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     const pay = $('s-pay'); pay.textContent = '';
     for (const [a, b] of rows) { const d = document.createElement('div'); d.innerHTML = '<span></span><span></span>'; d.children[0].textContent = a; d.children[1].textContent = fmt(b); pay.appendChild(d); }
     const t = document.createElement('div'); t.className = 'total'; t.innerHTML = '<span>This jump</span><span></span>'; t.children[1].textContent = fmt(r.pay.total); pay.appendChild(t);
+    $('s-note').hidden = !r.first;
     $('again').textContent = r.crossed ? 'Jump it again' : 'Jump again';
     resetArmed = false; $('reset').textContent = 'Start over';
     renderShop(); hud();
@@ -641,6 +751,12 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   function frame(ts) {
     const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts; acc += dt;
     while (acc >= DT) { tick(); acc -= DT; }
+    { // wind on the cape, in the scooter's own frame
+      let vx = 0, vy = 0, a = 0;
+      if (roll) { vx = roll.v; a = roll.a; } else if (run && state !== 'aim') { a = run.a; if (run.mode === 'ground') { vx = run.v * Math.cos(a); vy = run.v * Math.sin(a); } else { vx = run.vx; vy = run.vy; } }
+      const sp = Math.hypot(vx, vy), c = Math.cos(a), s = Math.sin(a);
+      capeWind = sp > 1 ? { lx: -(vx * c + vy * s) / sp, ly: -(vx * s - vy * c) / sp, sp } : { lx: -1, ly: 0, sp: 0 };
+    }
     camera(dt, false); draw();
     { const f = focus(), on = state === 'run'; snd.update(state, on || roll ? f.sp : 0, on && run.mode === 'air', on && run.boosting, state === 'after' && !!roll); }
     if (state === 'run' || state === 'after') hudLive();
@@ -661,6 +777,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       $('k-boost').textContent = 'Hold BOOST in the air, once you own a rocket';
     }
     hud(); camera(0, true);
+    buildWalls();
     ready.then(() => { resize(); camera(0, true); requestAnimationFrame(frame); });
   }
   const hot = window.claude && window.claude.hot;
