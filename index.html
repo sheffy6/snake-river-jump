@@ -250,7 +250,7 @@ const SRJ = (() => {
       base: 100, growth: 2.4,
     },
     frame: {
-      name: 'Lighter frame', blurb: 'Launches faster and glides further',
+      name: 'Lighter frame', blurb: 'Launches faster, glides further, flips quicker',
       vals: [1, 0.92, 0.85, 0.78, 0.72, 0.66], unit: v => Math.round(v * 240) + ' lb',
       base: 120, growth: 2.4,
     },
@@ -275,7 +275,7 @@ const SRJ = (() => {
   }
 
   // ---- A run ----------------------------------------------------------
-  const T = { CD: 1.5e-5, CL: 1.8e-5, CDI: 2e-5, ROCKET_A: 800, TORQUE: 16, SPIN_DAMP: 2.2, RATE: 1, FLIP_MULT: 0.25, PB_RATE: 2 };
+  const T = { CD: 1.5e-5, CL: 1.8e-5, CDI: 2e-5, ROCKET_A: 800, TORQUE: 16, SPIN_DAMP: 2.2, RATE: 1, FLIP_MULT: 0.5, PB_RATE: 2, FRAME_SPIN: 0.2 };
 
   function newRun(up, power) {
     const m = val('frame', up);
@@ -339,7 +339,10 @@ const SRJ = (() => {
     }
     s.vx += ax * dt; s.vy += ay * dt;
     s.x += s.vx * dt; s.y += s.vy * dt;
-    s.w += (input.tilt || 0) * T.TORQUE * dt;
+    // a lighter frame spins up faster once a flip is under way; the first touch of the lean control is unchanged, so steering feels the same
+    const tilt = input.tilt || 0;
+    const commit = tilt * s.w > 0 ? Math.min(1, Math.abs(s.w) / 4) : 0;
+    s.w += tilt * T.TORQUE * (1 + T.FRAME_SPIN * s.up.frame * commit) * dt;
     s.w *= Math.exp(-T.SPIN_DAMP * dt);
     s.a += s.w * dt; s.rot += s.w * dt;
     if (!s.rimDone) { // spins on the way down into the canyon don't count
