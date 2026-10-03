@@ -90,6 +90,38 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   #hud { gap: 6px; }
   .chip { padding: 3px 7px; font-size: 16px; }
 }
+/* Phone on its side: very little height, so both cards go two columns and lose their decoration. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .panel { padding-block: 8px; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+  .card { max-width: 860px; box-shadow: 4px 4px 0 var(--ink); }
+  .card .stripe { display: none; }
+  .card .body { padding: 12px 16px; display: grid; gap: 6px 18px; align-content: start; }
+  h1 { font-size: 30px; }
+  h2 { font-size: 21px; }
+  p, dl.keys { font-size: 16px; line-height: 1.25; }
+  button.big { font-size: 18px; padding: 8px 16px; }
+  #title .body { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+  #title .body > * { grid-column: 1; }
+  #title dl.keys { grid-column: 2; grid-row: 1 / span 4; align-self: center; }
+  #shop .body { grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.6fr); grid-template-rows: auto auto auto 1fr; }
+  #shop .body > * { grid-column: 1; }
+  #shop .shophead { grid-column: 2; grid-row: 1; }
+  #shop .shop { grid-column: 2; grid-row: 2 / span 3; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-self: start; }
+  #shop .actions { position: static; margin: 0; padding: 0; align-self: end; }
+  .pay { font-size: 16px; }
+  .pay .total { font-size: 18px; }
+  .up { padding: 6px 9px; gap: 0 8px; }
+  .up h3 { font-size: 17px; }
+  .up .what { font-size: 14px; line-height: 1.15; }
+  .up .next { font-size: 15px; }
+  .up .pips i { width: 9px; height: 9px; border-width: 1.5px; }
+  .up button { min-width: 70px; padding: 4px 10px; font-size: 16px; }
+  .chip { padding: 2px 8px; font-size: 16px; }
+  #hud { top: 8px; }
+  #flight { top: 40px; }
+  #dist { font-size: 30px; }
+  #touch button { width: 60px; height: 60px; }
+}
 @media (prefers-reduced-motion: reduce) { #pop.show { animation: none; opacity: 1; } }
 </style>
 
@@ -120,9 +152,9 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
         <h1>Snake River Jump</h1>
         <p>One scooter, one spring launcher and a canyon you will not clear on the first try. Every jump pays by the foot, flips pay extra, and the money buys a better scooter.</p>
         <dl class="keys">
-          <dt>Launch</dt><dd><kbd>Space</kbd> or tap when the needle is in the green</dd>
-          <dt>Lean</dt><dd><kbd>←</kbd> back, <kbd>→</kbd> forward. A full spin is a flip.</dd>
-          <dt>Boost</dt><dd>Hold <kbd>Space</kbd> in the air, once you own a rocket</dd>
+          <dt>Launch</dt><dd id="k-launch"><kbd>Space</kbd> or tap when the needle is in the green</dd>
+          <dt>Lean</dt><dd id="k-lean"><kbd>←</kbd> back, <kbd>→</kbd> forward. A full spin is a flip.</dd>
+          <dt>Boost</dt><dd id="k-boost">Hold <kbd>Space</kbd> in the air, once you own a rocket</dd>
         </dl>
         <div class="row"><button class="big" id="start">Start jumping</button><span id="resume" hidden></span></div>
       </div>
@@ -136,7 +168,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
         <div class="eyebrow" id="s-eyebrow">Jump 1</div>
         <h2 id="s-head">Into the canyon</h2>
         <div class="pay" id="s-pay"></div>
-        <div class="row"><div class="eyebrow">Upgrades</div><div class="chip" id="s-cash">$0</div></div>
+        <div class="row shophead"><div class="eyebrow">Upgrades</div><div class="chip" id="s-cash">$0</div></div>
         <div class="shop" id="s-shop"></div>
         <div class="row actions"><button class="big" id="again">Jump again</button><button class="quiet" id="reset">Start over</button></div>
       </div>
@@ -737,6 +769,11 @@ const SRJ = (() => {
     if (save.jumps) {
       $('start').textContent = 'Keep jumping';
       $('resume').hidden = false; $('resume').textContent = save.jumps + (save.jumps === 1 ? ' jump' : ' jumps') + ' so far · ' + fmt(save.cash) + ' banked';
+    }
+    if (coarse) {
+      $('k-launch').textContent = 'Tap when the needle is in the green';
+      $('k-lean').textContent = 'Hold ↺ to lean back, ↻ to lean forward. A full spin is a flip.';
+      $('k-boost').textContent = 'Hold BOOST in the air, once you own a rocket';
     }
     hud(); camera(0, true);
     ready.then(() => { resize(); camera(0, true); requestAnimationFrame(frame); });
