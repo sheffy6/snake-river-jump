@@ -155,7 +155,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       <div class="body">
         <div class="eyebrow">Twin Falls, Idaho · 1,600 feet rim to rim</div>
         <h1>Snake River Jump</h1>
-        <p>One scooter, one spring launcher and a canyon you will not clear on the first try. Every jump pays by the foot, flips pay extra, and the money buys a better scooter.</p>
+        <p>One scooter, one spring launcher and a canyon you will not clear on the first try. Land it on your wheels on the far side to finish. Every jump pays by the foot, flips pay extra, and the money buys a better scooter.</p>
         <dl class="keys">
           <dt>Launch</dt><dd id="k-launch"><kbd>Space</kbd> or tap when the needle is in the green</dd>
           <dt>Lean</dt><dd id="k-lean"><kbd>←</kbd> back, <kbd>→</kbd> forward. A full spin is a flip.</dd>
@@ -173,7 +173,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
         <div class="eyebrow" id="s-eyebrow">Jump 1</div>
         <h2 id="s-head">Into the canyon</h2>
         <div class="pay" id="s-pay"></div>
-        <p id="s-note" hidden>You earned the cape. He wears it on every jump from now on.</p>
+        <p id="s-note" hidden></p>
         <div class="row shophead"><div class="eyebrow">Upgrades</div><div class="chip" id="s-cash">$0</div></div>
         <div class="shop" id="s-shop"></div>
         <div class="row actions"><button class="big" id="again">Jump again</button><button class="quiet" id="reset">Start over</button></div>
@@ -545,12 +545,12 @@ const SRJ = (() => {
 
   const HEAD = {
     canyon: 'Into the canyon', wall: 'Hit the far wall', near: 'Never left the cliff', stall: 'Stalled on the ramp',
-    landed: 'Stuck the landing', crashland: 'Across, in pieces',
+    landed: 'Stuck the landing', crashland: 'Crashed the landing',
   };
   function endRun() {
     const s = run;
     const pay = SRJ.payout(s.distFt, s.flips, save.best);
-    const crossed = s.outcome === 'landed' || s.outcome === 'crashland';
+    const crossed = s.outcome === 'landed'; // reaching the far side only counts if he lands it
     result = { outcome: s.outcome, dist: s.distFt, flips: s.flips, pay, gain: Math.max(0, s.distFt - save.best), crossed, first: crossed && !save.won, jump: save.jumps + 1 };
     save.cash += pay.total; save.best = Math.max(save.best, s.distFt); save.jumps++; if (crossed) save.won = true;
     store();
@@ -568,7 +568,7 @@ const SRJ = (() => {
     } else {
       scatter(s); snd.stopFall(); snd.thud(true);
       for (let i = 0; i < 16; i++) dust(s.x, s.y - 40, (Math.random() - 0.5) * 500, Math.random() * 300);
-      if (s.outcome === 'crashland') { after = 2.2; pop('You made it!'); snd.win(); for (let i = 0; i < 26; i++) star(s.x, s.y + 60); }
+      if (s.outcome === 'crashland') { after = 1.8; pop('Wheels down!'); }
       else if (s.outcome === 'wall') pop('So close');
     }
   }
@@ -889,7 +889,8 @@ const SRJ = (() => {
     const pay = $('s-pay'); pay.textContent = '';
     for (const [a, b] of rows) { const d = document.createElement('div'); d.innerHTML = '<span></span><span></span>'; d.children[0].textContent = a; d.children[1].textContent = fmt(b); pay.appendChild(d); }
     const t = document.createElement('div'); t.className = 'total'; t.innerHTML = '<span>This jump</span><span></span>'; t.children[1].textContent = fmt(r.pay.total); pay.appendChild(t);
-    $('s-note').hidden = !r.first;
+    $('s-note').hidden = !(r.first || r.outcome === 'crashland');
+    $('s-note').textContent = r.first ? 'You earned the cape. He wears it on every jump from now on.' : 'You reached the far side, but it only counts if you land on your wheels.';
     $('again').textContent = r.crossed ? 'Jump it again' : 'Jump again';
     resetArmed = false; $('reset').textContent = 'Start over';
     renderShop(); hud();
