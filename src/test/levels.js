@@ -25,7 +25,7 @@ const { chromium } = require('playwright');
   await fly([[() => window.__srj.run.mode === 'ground' && window.__srj.run.x > 2200, 'lv-3run.png'], [() => window.__srj.run.mode === 'air' && window.__srj.run.x > 5200, 'lv-4air.png']]);
   await p.screenshot({ path: 'lv-5shop.png' }); console.log('stock mower:', await p.textContent('#s-eyebrow'), '| prices', await p.textContent('#buy-launcher'), await p.textContent('#buy-rocket'));
   await p.click('#again'); await p.evaluate(() => { window.__srj.save.up = { launcher: 5, engine: 5, frame: 5, rocket: 5 }; });
-  await fly([[() => window.__srj.run.zone > 0, 'lv-6thermal.png'], [() => window.__srj.run.zone < 0, 'lv-7sink.png'], [() => window.__srj.run.x > 38300 - 1500, 'lv-8far.png']]);
+  await fly([[() => window.__srj.run.mode === 'air' && window.__srj.run.x > 9000, 'lv-6glide.png'], [() => window.__srj.run.x > 38300 - 1500, 'lv-8far.png']]);
   await p.screenshot({ path: 'lv-9shop.png' });
   console.log('maxed mower:', await p.textContent('#s-head'), '|', await p.textContent('#s-note'), '| next:', await p.isVisible('#next'), '| cleared', await p.evaluate(() => window.__srj.save.cleared));
   // reload keeps the level

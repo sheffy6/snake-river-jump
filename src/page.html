@@ -223,7 +223,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     else { const fx = W.FAR - 270; strips = [['bg6c', fx], ['bg1', 0], ['bg7', fx + 1236], ['bg8', fx + 1236 + 4096]]; REP_X = fx + 1236 + 4096 + 3079; }
     $('t-eyebrow').textContent = L.place + ' · ' + L.gapFt.toLocaleString('en-US') + ' feet rim to rim';
     if (!blurb0) blurb0 = $('t-blurb').textContent;
-    $('t-blurb').textContent = save.lvl === 0 ? blurb0 : L.name + ' is wider, the wind is up, and the scooter has been swapped for a ' + L.vehicleName + '. Green bands of rising air lift you and red bands of sinking air drop you. Land it on your wheels to finish.';
+    $('t-blurb').textContent = save.lvl === 0 ? blurb0 : L.name + ' is wider, and the scooter has been swapped for a ' + L.vehicleName + ' you can fit with wings. Wings make it nose-heavy: lean back to hold the nose a little above your path and it glides, lean back too far and it stalls. Land it on your wheels to finish.';
     const tr = $('track'); for (const z of [...tr.querySelectorAll('b')]) z.remove();
     for (const z of W.ZONES) { const el = document.createElement('b'); el.className = z.up > 0 ? 'rise' : 'sink'; /* not 'up': that is the shop card's class */ el.style.left = (z.x0 - W.NEAR) / W.GAP * 100 + '%'; el.style.width = (z.x1 - z.x0) / W.GAP * 100 + '%'; tr.prepend(el); }
   }
@@ -245,7 +245,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   const PARTS = { rider: [-23, -50.5] };
 
   let state = 'title', run = null, roll = null, parts = [], fx = [], doll = null;
-  let falling = false;
+  let falling = false, stallSaid = false;
   let meter = 0, meterDir = 1, after = 0, runT = 0, spin = 0, lastFlips = 0, result = null;
   let zoom = 0.6, camL = 0, camY = 0, Wc = 800, Hc = 500, dpr = 1;
   const held = { back: false, fwd: false, boost: false };
@@ -347,12 +347,12 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     snd.init(); snd.stopFall();
     state = 'aim'; run = null; roll = null; parts = []; fx = []; doll = null; runT = 0; meter = 0; meterDir = 1; lastFlips = 0;
     $('title').hidden = true; $('shop').hidden = true; $('flight').hidden = true; $('touch').hidden = true;
-    setHint(W.ZONES.length && save.ljumps < 4 ? 'Green air lifts you, red air drops you. ' + (coarse ? 'Tap' : 'Space') + ' to launch in the green.' : coarse ? 'Tap to launch when the needle is in the green' : 'Space or click to launch when the needle is in the green');
+    setHint(L.wings && save.ljumps < 6 ? (save.up.frame > 0 ? 'Hold the nose a little above your path. Too high and the wings stall.' : 'Buy wings in the shop to glide. ' + (coarse ? 'Tap' : 'Space') + ' to launch in the green.') : coarse ? 'Tap to launch when the needle is in the green' : 'Space or click to launch when the needle is in the green');
     hud();
   }
   function launch() {
     const power = SRJ.meterPower(meter);
-    run = SRJ.newRun(save.up, power); state = 'run'; runT = 0; falling = false;
+    run = SRJ.newRun(save.up, power); state = 'run'; runT = 0; falling = false; stallSaid = false;
     snd.twang(power);
     pop(meter > SRJ.GREEN1 ? 'Over-wound!' : meter >= SRJ.GREEN0 ? 'Sweet spot!' : meter > 0.5 ? 'Decent' : 'Weak spring');
     for (let i = 0; i < 14; i++) dust(W.START - 110, 10 + Math.random() * 40, -200 - Math.random() * 300, 60 + Math.random() * 160);
@@ -454,6 +454,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       if (run.mode === 'ground' && Math.random() < 0.08) dust(run.x - 110, run.y - W.COM_H + 6, -80, 40 + Math.random() * 60);
       if (run.rimDone && !falling && run.x < W.FAR - 900) { falling = true; snd.fall(); }
       if (falling && !run.rimDone) { falling = false; snd.stopFall(); } // rising air carried him back up
+      if (run.stall && !stallSaid && run.mode === 'air' && !run.rimDone) { stallSaid = true; pop('Stall! Nose down'); }
       if (run.flips > lastFlips) { lastFlips = run.flips; snd.flip(run.flips); pop(['', 'Flip!', 'Double flip!', 'Triple flip!'][run.flips] || run.flips + ' flips!'); }
       if (run.done) endRun();
     } else if (state === 'after') {
@@ -591,9 +592,29 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       if (wheel) { ctx.save(); ctx.translate(lx, ly); ctx.rotate(spin); ctx.drawImage(im, -im.width / 2, -im.height / 2); ctx.restore(); }
       else ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2);
     }
+    if (L.wings && save.up.frame > 0) drawWing(save.up.frame);
     if (hasCape()) drawCape(CAPE_AT[0], CAPE_AT[1], -Math.sin(a), Math.cos(a), capeWind.lx, capeWind.ly, capeWind.sp, performance.now() / 1000);
     { const im = img.rider, [lx, ly] = PARTS.rider; ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2); }
     ctx.restore();
+  }
+  // Stand-in wing: an aerofoil on struts over the rider and a tail fin, both growing with the wing level.
+  function drawWing(lvl) {
+    const g = ctx, c = 76 + 36 * lvl, t = 10 + 2 * lvl, cx = -8, y = -186, x0 = cx - c / 2, x1 = cx + c / 2;
+    g.save(); g.lineJoin = 'round'; g.lineCap = 'round';
+    // tail fin
+    g.beginPath(); g.moveTo(-146, 14); g.lineTo(-158, -34 - 9 * lvl); g.lineTo(-136, -30 - 9 * lvl); g.lineTo(-110, 14); g.closePath();
+    g.fillStyle = '#cf4a3c'; g.fill(); g.strokeStyle = '#8f2a27'; g.lineWidth = 3.5; g.stroke();
+    // struts from the frame up to the wing
+    g.strokeStyle = '#4a4a50'; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(-104, 0); g.lineTo(x0 + c * 0.3, y + 2); g.moveTo(56, -14); g.lineTo(x1 - c * 0.22, y + 2); g.stroke();
+    // the wing, nose slightly up
+    g.translate(cx, y); g.rotate(-0.07); g.translate(-cx, -y);
+    g.beginPath(); g.moveTo(x0, y);
+    g.bezierCurveTo(x0 + c * 0.3, y - t * 1.5, x1 - c * 0.1, y - t * 1.9, x1, y - t * 0.25);
+    g.quadraticCurveTo(x1 + 7, y + t * 0.5, x1 - c * 0.12, y + t * 0.55);
+    g.closePath(); g.fillStyle = '#f3e6c4'; g.fill(); g.strokeStyle = '#8a836e'; g.lineWidth = 3.5; g.stroke();
+    g.beginPath(); g.moveTo(x1 - c * 0.2, y - t * 1.35); g.lineTo(x1 - c * 0.24, y + t * 0.3); g.strokeStyle = '#cf4a3c'; g.lineWidth = 6; g.stroke();
+    g.restore();
   }
   // Stand-in riding mower, drawn to sit under the same rider pose as the scooter: seat under him, pedals under his shoe, wheel in his hands.
   function buildMower() {

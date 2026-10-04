@@ -61,13 +61,14 @@ const SRJ = (() => {
     },
   };
   const ORDER = ['launcher', 'engine', 'frame', 'rocket'];
+  const FRAME0 = { name: UPGRADES.frame.name, blurb: UPGRADES.frame.blurb, unit: UPGRADES.frame.unit };
   const MAX_LVL = 5;
   const cost = (k, lvl) => Math.round(UPGRADES[k].base * Math.pow(UPGRADES[k].growth, lvl) / 5) * 5;
   const val = (k, up) => UPGRADES[k].vals[up[k]];
 
   // ---- Levels --------------------------------------------------------
   // Each canyon has its own gap, vehicle, pay rate and wind. A new vehicle starts the shop again from a higher floor.
-  const T = { CD: 1.5e-5, CL: 1.8e-5, CDI: 2e-5, ROCKET_A: 800, TORQUE: 16, SPIN_DAMP: 2.2, RATE: 1, FLIP_MULT: 0.5, PB_RATE: 2, FRAME_SPIN: 0.2 };
+  const T = { CD: 1.5e-5, CL: 1.8e-5, CDI: 2e-5, ROCKET_A: 800, TORQUE: 16, SPIN_DAMP: 2.2, RATE: 1, FLIP_MULT: 0.5, PB_RATE: 2, FRAME_SPIN: 0.2, NOSE: 7, NOSE_AT: -0.55 };
   const LEVELS = [
     {
       id: 'snake', name: 'Snake River Canyon', place: 'Twin Falls, Idaho', gapFt: 1600, vehicle: 'scooter', vehicleName: 'scooter', rate: 1, lb: 240,
@@ -76,10 +77,10 @@ const SRJ = (() => {
     },
     {
       id: 'hells', name: 'Hells Canyon', place: 'Idaho and Oregon', gapFt: 2800, vehicle: 'mower', vehicleName: 'lawnmower', rate: 2, lb: 520,
-      vals: { launcher: [1500, 1660, 1820, 1990, 2170, 2360], engine: [300, 390, 490, 600, 720, 850], frame: [0.9, 0.84, 0.78, 0.72, 0.67, 0.62], rocket: [1.0, 1.5, 2.0, 2.6, 3.2, 3.8] },
-      base: { launcher: 400, engine: 500, frame: 600, rocket: 750 },
-      // fractions of the gap, and lift in px/s^2 (gravity is 900): three thermals to ride and two sinks to get through
-      zones: [[0.16, 0.24, 620], [0.33, 0.40, -480], [0.47, 0.56, 620], [0.64, 0.70, -480], [0.76, 0.85, 620]],
+      mass: 0.9,   // fixed: on the mower the third upgrade is wings, not weight
+      wings: { name: 'Wings', blurb: 'More lift. Hold the nose up to glide; too far and it stalls' },
+      vals: { launcher: [1500, 1660, 1820, 1990, 2170, 2360], engine: [300, 390, 490, 600, 720, 850], frame: [1, 1.5, 2, 2.5, 3, 3.5], rocket: [1.0, 1.5, 2.0, 2.6, 3.2, 3.8] },
+      base: { launcher: 400, engine: 500, frame: 600, rocket: 750 }, zones: [],
     },
   ];
   let level = 0;
@@ -89,6 +90,9 @@ const SRJ = (() => {
     W.GAP_FT = L.gapFt; W.GAP = Math.round(L.gapFt * W.PXFT); W.FAR = W.NEAR + W.GAP; W.LB = L.lb;
     W.ZONES = L.zones.map(([a, b, up]) => ({ x0: W.NEAR + a * W.GAP, x1: W.NEAR + b * W.GAP, up }));
     for (const k of ORDER) { UPGRADES[k].vals = L.vals[k]; UPGRADES[k].base = L.base[k]; }
+    const f = UPGRADES.frame;
+    if (L.wings) { f.name = L.wings.name; f.blurb = L.wings.blurb; f.unit = v => (v > 1 ? Math.round((v - 1) * 8) + ' ft span' : 'none'); }
+    else { f.name = FRAME0.name; f.blurb = FRAME0.blurb; f.unit = FRAME0.unit; }
     T.RATE = L.rate; T.PB_RATE = 2 * L.rate;
     return L;
   }
@@ -104,9 +108,13 @@ const SRJ = (() => {
 
   // ---- A run ----------------------------------------------------------
   function newRun(up, power) {
-    const m = val('frame', up);
+    const L = LEVELS[level], winged = !!L.wings;
+    const m = winged ? L.mass : val('frame', up), wing = winged ? val('frame', up) : 1;
     return {
       mode: 'ground', t: 0, up, mass: m,
+      wing,                                             // lift multiplier
+      heavy: winged ? (wing - 1) / 2.5 : 0,             // 0 with no wings, 1 with the biggest: how hard the nose drops
+      spinLvl: winged ? 0 : up.frame, stall: false,
       x: W.START, y: W.COM_H, a: 0, w: 0,
       v: val('launcher', up) * power / Math.sqrt(m), vx: 0, vy: 0,
       fuel: val('rocket', up), boosting: false,
@@ -156,7 +164,8 @@ const SRJ = (() => {
     const sa = Math.min(aw, Math.PI / 4);
     const drag = (T.CD + T.CDI * Math.sin(sa) * Math.sin(sa)) * sp;
     ax -= drag * s.vx; ay -= drag * s.vy;
-    const lift = T.CL / s.mass * sp * sp * liftK;
+    const lift = T.CL * s.wing / s.mass * sp * sp * liftK;
+    s.stall = s.wing > 1 && aw > 0.9 && aw < 2.2 && sp > 350;
     ax += -lift * Math.sin(va); ay += lift * Math.cos(va);
     s.boosting = !!(input.boost && s.fuel > 0);
     if (s.boosting) {
@@ -172,7 +181,9 @@ const SRJ = (() => {
     // a lighter frame spins up faster once a flip is under way; the first touch of the lean control is unchanged, so steering feels the same
     const tilt = input.tilt || 0;
     const commit = tilt * s.w > 0 ? Math.min(1, Math.abs(s.w) / 4) : 0;
-    s.w += tilt * T.TORQUE * (1 + T.FRAME_SPIN * s.up.frame * commit) * dt;
+    s.w += tilt * T.TORQUE * (1 + T.FRAME_SPIN * s.spinLvl * commit) * dt;
+    // wings make it nose-heavy: left alone it swings to point below its flight path and dives
+    if (s.heavy) s.w += T.NOSE * s.heavy * Math.sin(va + T.NOSE_AT - s.a) * dt;
     s.w *= Math.exp(-T.SPIN_DAMP * dt);
     s.a += s.w * dt; s.rot += s.w * dt;
     if (!s.rimDone) { // spins on the way down into the canyon don't count

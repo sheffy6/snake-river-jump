@@ -18,7 +18,7 @@ The whole game is `index.html`. Artwork by Kevin.
 
 The canyon walls below the rim, the cape and the crash ragdoll's joints are drawn or defined in `src/page.html`, not in `art/`.
 
-Levels live in `LEVELS` in `src/core.js`: gap, vehicle numbers, pay rate and wind zones. `node src/sim/level2.js` tunes Hells Canyon. Its far ridges, evening tint, wind bands and the stand-in lawnmower are drawn in `src/page.html`.
+Levels live in `LEVELS` in `src/core.js`: gap, vehicle numbers, pay rate and wind zones. `node src/sim/wings.js` tunes Hells Canyon, where the third upgrade is wings and the mower is nose-heavy. Its far ridges, evening tint, the stand-in lawnmower and its wings are drawn in `src/page.html`. (`level2.js` and `wind.js` are from an earlier trial with wind bands.)
 
 ## Changing the game
 

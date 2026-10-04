@@ -278,13 +278,14 @@ const SRJ = (() => {
     },
   };
   const ORDER = ['launcher', 'engine', 'frame', 'rocket'];
+  const FRAME0 = { name: UPGRADES.frame.name, blurb: UPGRADES.frame.blurb, unit: UPGRADES.frame.unit };
   const MAX_LVL = 5;
   const cost = (k, lvl) => Math.round(UPGRADES[k].base * Math.pow(UPGRADES[k].growth, lvl) / 5) * 5;
   const val = (k, up) => UPGRADES[k].vals[up[k]];
 
   // ---- Levels --------------------------------------------------------
   // Each canyon has its own gap, vehicle, pay rate and wind. A new vehicle starts the shop again from a higher floor.
-  const T = { CD: 1.5e-5, CL: 1.8e-5, CDI: 2e-5, ROCKET_A: 800, TORQUE: 16, SPIN_DAMP: 2.2, RATE: 1, FLIP_MULT: 0.5, PB_RATE: 2, FRAME_SPIN: 0.2 };
+  const T = { CD: 1.5e-5, CL: 1.8e-5, CDI: 2e-5, ROCKET_A: 800, TORQUE: 16, SPIN_DAMP: 2.2, RATE: 1, FLIP_MULT: 0.5, PB_RATE: 2, FRAME_SPIN: 0.2, NOSE: 7, NOSE_AT: -0.55 };
   const LEVELS = [
     {
       id: 'snake', name: 'Snake River Canyon', place: 'Twin Falls, Idaho', gapFt: 1600, vehicle: 'scooter', vehicleName: 'scooter', rate: 1, lb: 240,
@@ -293,10 +294,10 @@ const SRJ = (() => {
     },
     {
       id: 'hells', name: 'Hells Canyon', place: 'Idaho and Oregon', gapFt: 2800, vehicle: 'mower', vehicleName: 'lawnmower', rate: 2, lb: 520,
-      vals: { launcher: [1500, 1660, 1820, 1990, 2170, 2360], engine: [300, 390, 490, 600, 720, 850], frame: [0.9, 0.84, 0.78, 0.72, 0.67, 0.62], rocket: [1.0, 1.5, 2.0, 2.6, 3.2, 3.8] },
-      base: { launcher: 400, engine: 500, frame: 600, rocket: 750 },
-      // fractions of the gap, and lift in px/s^2 (gravity is 900): three thermals to ride and two sinks to get through
-      zones: [[0.16, 0.24, 620], [0.33, 0.40, -480], [0.47, 0.56, 620], [0.64, 0.70, -480], [0.76, 0.85, 620]],
+      mass: 0.9,   // fixed: on the mower the third upgrade is wings, not weight
+      wings: { name: 'Wings', blurb: 'More lift. Hold the nose up to glide; too far and it stalls' },
+      vals: { launcher: [1500, 1660, 1820, 1990, 2170, 2360], engine: [300, 390, 490, 600, 720, 850], frame: [1, 1.5, 2, 2.5, 3, 3.5], rocket: [1.0, 1.5, 2.0, 2.6, 3.2, 3.8] },
+      base: { launcher: 400, engine: 500, frame: 600, rocket: 750 }, zones: [],
     },
   ];
   let level = 0;
@@ -306,6 +307,9 @@ const SRJ = (() => {
     W.GAP_FT = L.gapFt; W.GAP = Math.round(L.gapFt * W.PXFT); W.FAR = W.NEAR + W.GAP; W.LB = L.lb;
     W.ZONES = L.zones.map(([a, b, up]) => ({ x0: W.NEAR + a * W.GAP, x1: W.NEAR + b * W.GAP, up }));
     for (const k of ORDER) { UPGRADES[k].vals = L.vals[k]; UPGRADES[k].base = L.base[k]; }
+    const f = UPGRADES.frame;
+    if (L.wings) { f.name = L.wings.name; f.blurb = L.wings.blurb; f.unit = v => (v > 1 ? Math.round((v - 1) * 8) + ' ft span' : 'none'); }
+    else { f.name = FRAME0.name; f.blurb = FRAME0.blurb; f.unit = FRAME0.unit; }
     T.RATE = L.rate; T.PB_RATE = 2 * L.rate;
     return L;
   }
@@ -321,9 +325,13 @@ const SRJ = (() => {
 
   // ---- A run ----------------------------------------------------------
   function newRun(up, power) {
-    const m = val('frame', up);
+    const L = LEVELS[level], winged = !!L.wings;
+    const m = winged ? L.mass : val('frame', up), wing = winged ? val('frame', up) : 1;
     return {
       mode: 'ground', t: 0, up, mass: m,
+      wing,                                             // lift multiplier
+      heavy: winged ? (wing - 1) / 2.5 : 0,             // 0 with no wings, 1 with the biggest: how hard the nose drops
+      spinLvl: winged ? 0 : up.frame, stall: false,
       x: W.START, y: W.COM_H, a: 0, w: 0,
       v: val('launcher', up) * power / Math.sqrt(m), vx: 0, vy: 0,
       fuel: val('rocket', up), boosting: false,
@@ -373,7 +381,8 @@ const SRJ = (() => {
     const sa = Math.min(aw, Math.PI / 4);
     const drag = (T.CD + T.CDI * Math.sin(sa) * Math.sin(sa)) * sp;
     ax -= drag * s.vx; ay -= drag * s.vy;
-    const lift = T.CL / s.mass * sp * sp * liftK;
+    const lift = T.CL * s.wing / s.mass * sp * sp * liftK;
+    s.stall = s.wing > 1 && aw > 0.9 && aw < 2.2 && sp > 350;
     ax += -lift * Math.sin(va); ay += lift * Math.cos(va);
     s.boosting = !!(input.boost && s.fuel > 0);
     if (s.boosting) {
@@ -389,7 +398,9 @@ const SRJ = (() => {
     // a lighter frame spins up faster once a flip is under way; the first touch of the lean control is unchanged, so steering feels the same
     const tilt = input.tilt || 0;
     const commit = tilt * s.w > 0 ? Math.min(1, Math.abs(s.w) / 4) : 0;
-    s.w += tilt * T.TORQUE * (1 + T.FRAME_SPIN * s.up.frame * commit) * dt;
+    s.w += tilt * T.TORQUE * (1 + T.FRAME_SPIN * s.spinLvl * commit) * dt;
+    // wings make it nose-heavy: left alone it swings to point below its flight path and dives
+    if (s.heavy) s.w += T.NOSE * s.heavy * Math.sin(va + T.NOSE_AT - s.a) * dt;
     s.w *= Math.exp(-T.SPIN_DAMP * dt);
     s.a += s.w * dt; s.rot += s.w * dt;
     if (!s.rimDone) { // spins on the way down into the canyon don't count
@@ -474,7 +485,7 @@ const SRJ = (() => {
     else { const fx = W.FAR - 270; strips = [['bg6c', fx], ['bg1', 0], ['bg7', fx + 1236], ['bg8', fx + 1236 + 4096]]; REP_X = fx + 1236 + 4096 + 3079; }
     $('t-eyebrow').textContent = L.place + ' · ' + L.gapFt.toLocaleString('en-US') + ' feet rim to rim';
     if (!blurb0) blurb0 = $('t-blurb').textContent;
-    $('t-blurb').textContent = save.lvl === 0 ? blurb0 : L.name + ' is wider, the wind is up, and the scooter has been swapped for a ' + L.vehicleName + '. Green bands of rising air lift you and red bands of sinking air drop you. Land it on your wheels to finish.';
+    $('t-blurb').textContent = save.lvl === 0 ? blurb0 : L.name + ' is wider, and the scooter has been swapped for a ' + L.vehicleName + ' you can fit with wings. Wings make it nose-heavy: lean back to hold the nose a little above your path and it glides, lean back too far and it stalls. Land it on your wheels to finish.';
     const tr = $('track'); for (const z of [...tr.querySelectorAll('b')]) z.remove();
     for (const z of W.ZONES) { const el = document.createElement('b'); el.className = z.up > 0 ? 'rise' : 'sink'; /* not 'up': that is the shop card's class */ el.style.left = (z.x0 - W.NEAR) / W.GAP * 100 + '%'; el.style.width = (z.x1 - z.x0) / W.GAP * 100 + '%'; tr.prepend(el); }
   }
@@ -496,7 +507,7 @@ const SRJ = (() => {
   const PARTS = { rider: [-23, -50.5] };
 
   let state = 'title', run = null, roll = null, parts = [], fx = [], doll = null;
-  let falling = false;
+  let falling = false, stallSaid = false;
   let meter = 0, meterDir = 1, after = 0, runT = 0, spin = 0, lastFlips = 0, result = null;
   let zoom = 0.6, camL = 0, camY = 0, Wc = 800, Hc = 500, dpr = 1;
   const held = { back: false, fwd: false, boost: false };
@@ -598,12 +609,12 @@ const SRJ = (() => {
     snd.init(); snd.stopFall();
     state = 'aim'; run = null; roll = null; parts = []; fx = []; doll = null; runT = 0; meter = 0; meterDir = 1; lastFlips = 0;
     $('title').hidden = true; $('shop').hidden = true; $('flight').hidden = true; $('touch').hidden = true;
-    setHint(W.ZONES.length && save.ljumps < 4 ? 'Green air lifts you, red air drops you. ' + (coarse ? 'Tap' : 'Space') + ' to launch in the green.' : coarse ? 'Tap to launch when the needle is in the green' : 'Space or click to launch when the needle is in the green');
+    setHint(L.wings && save.ljumps < 6 ? (save.up.frame > 0 ? 'Hold the nose a little above your path. Too high and the wings stall.' : 'Buy wings in the shop to glide. ' + (coarse ? 'Tap' : 'Space') + ' to launch in the green.') : coarse ? 'Tap to launch when the needle is in the green' : 'Space or click to launch when the needle is in the green');
     hud();
   }
   function launch() {
     const power = SRJ.meterPower(meter);
-    run = SRJ.newRun(save.up, power); state = 'run'; runT = 0; falling = false;
+    run = SRJ.newRun(save.up, power); state = 'run'; runT = 0; falling = false; stallSaid = false;
     snd.twang(power);
     pop(meter > SRJ.GREEN1 ? 'Over-wound!' : meter >= SRJ.GREEN0 ? 'Sweet spot!' : meter > 0.5 ? 'Decent' : 'Weak spring');
     for (let i = 0; i < 14; i++) dust(W.START - 110, 10 + Math.random() * 40, -200 - Math.random() * 300, 60 + Math.random() * 160);
@@ -705,6 +716,7 @@ const SRJ = (() => {
       if (run.mode === 'ground' && Math.random() < 0.08) dust(run.x - 110, run.y - W.COM_H + 6, -80, 40 + Math.random() * 60);
       if (run.rimDone && !falling && run.x < W.FAR - 900) { falling = true; snd.fall(); }
       if (falling && !run.rimDone) { falling = false; snd.stopFall(); } // rising air carried him back up
+      if (run.stall && !stallSaid && run.mode === 'air' && !run.rimDone) { stallSaid = true; pop('Stall! Nose down'); }
       if (run.flips > lastFlips) { lastFlips = run.flips; snd.flip(run.flips); pop(['', 'Flip!', 'Double flip!', 'Triple flip!'][run.flips] || run.flips + ' flips!'); }
       if (run.done) endRun();
     } else if (state === 'after') {
@@ -842,9 +854,29 @@ const SRJ = (() => {
       if (wheel) { ctx.save(); ctx.translate(lx, ly); ctx.rotate(spin); ctx.drawImage(im, -im.width / 2, -im.height / 2); ctx.restore(); }
       else ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2);
     }
+    if (L.wings && save.up.frame > 0) drawWing(save.up.frame);
     if (hasCape()) drawCape(CAPE_AT[0], CAPE_AT[1], -Math.sin(a), Math.cos(a), capeWind.lx, capeWind.ly, capeWind.sp, performance.now() / 1000);
     { const im = img.rider, [lx, ly] = PARTS.rider; ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2); }
     ctx.restore();
+  }
+  // Stand-in wing: an aerofoil on struts over the rider and a tail fin, both growing with the wing level.
+  function drawWing(lvl) {
+    const g = ctx, c = 76 + 36 * lvl, t = 10 + 2 * lvl, cx = -8, y = -186, x0 = cx - c / 2, x1 = cx + c / 2;
+    g.save(); g.lineJoin = 'round'; g.lineCap = 'round';
+    // tail fin
+    g.beginPath(); g.moveTo(-146, 14); g.lineTo(-158, -34 - 9 * lvl); g.lineTo(-136, -30 - 9 * lvl); g.lineTo(-110, 14); g.closePath();
+    g.fillStyle = '#cf4a3c'; g.fill(); g.strokeStyle = '#8f2a27'; g.lineWidth = 3.5; g.stroke();
+    // struts from the frame up to the wing
+    g.strokeStyle = '#4a4a50'; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(-104, 0); g.lineTo(x0 + c * 0.3, y + 2); g.moveTo(56, -14); g.lineTo(x1 - c * 0.22, y + 2); g.stroke();
+    // the wing, nose slightly up
+    g.translate(cx, y); g.rotate(-0.07); g.translate(-cx, -y);
+    g.beginPath(); g.moveTo(x0, y);
+    g.bezierCurveTo(x0 + c * 0.3, y - t * 1.5, x1 - c * 0.1, y - t * 1.9, x1, y - t * 0.25);
+    g.quadraticCurveTo(x1 + 7, y + t * 0.5, x1 - c * 0.12, y + t * 0.55);
+    g.closePath(); g.fillStyle = '#f3e6c4'; g.fill(); g.strokeStyle = '#8a836e'; g.lineWidth = 3.5; g.stroke();
+    g.beginPath(); g.moveTo(x1 - c * 0.2, y - t * 1.35); g.lineTo(x1 - c * 0.24, y + t * 0.3); g.strokeStyle = '#cf4a3c'; g.lineWidth = 6; g.stroke();
+    g.restore();
   }
   // Stand-in riding mower, drawn to sit under the same rider pose as the scooter: seat under him, pedals under his shoe, wheel in his hands.
   function buildMower() {
