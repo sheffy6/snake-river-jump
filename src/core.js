@@ -16,6 +16,8 @@ const SRJ = (() => {
   W.GAP = W.FAR - W.NEAR;
   W.GAP_FT = 1600;
   W.PXFT = W.GAP / W.GAP_FT;
+  W.ZONES = [];        // wind: stretches of rising or sinking air over the canyon
+  W.LB = 240;          // what the stock vehicle weighs, for the shop label
 
   const A = 0.15; // fraction of the ramp that eases in
   function rampH(x) {
@@ -49,7 +51,7 @@ const SRJ = (() => {
     },
     frame: {
       name: 'Lighter frame', blurb: 'Launches faster, glides further, flips quicker',
-      vals: [1, 0.92, 0.85, 0.78, 0.72, 0.66], unit: v => Math.round(v * 240) + ' lb',
+      vals: [1, 0.92, 0.85, 0.78, 0.72, 0.66], unit: v => Math.round(v * W.LB) + ' lb',
       base: 120, growth: 2.4,
     },
     rocket: {
@@ -63,6 +65,34 @@ const SRJ = (() => {
   const cost = (k, lvl) => Math.round(UPGRADES[k].base * Math.pow(UPGRADES[k].growth, lvl) / 5) * 5;
   const val = (k, up) => UPGRADES[k].vals[up[k]];
 
+  // ---- Levels --------------------------------------------------------
+  // Each canyon has its own gap, vehicle, pay rate and wind. A new vehicle starts the shop again from a higher floor.
+  const T = { CD: 1.5e-5, CL: 1.8e-5, CDI: 2e-5, ROCKET_A: 800, TORQUE: 16, SPIN_DAMP: 2.2, RATE: 1, FLIP_MULT: 0.5, PB_RATE: 2, FRAME_SPIN: 0.2 };
+  const LEVELS = [
+    {
+      id: 'snake', name: 'Snake River Canyon', place: 'Twin Falls, Idaho', gapFt: 1600, vehicle: 'scooter', vehicleName: 'scooter', rate: 1, lb: 240,
+      vals: { launcher: [1000, 1160, 1336, 1528, 1736, 1960], engine: [96, 176, 264, 360, 464, 576], frame: [1, 0.92, 0.85, 0.78, 0.72, 0.66], rocket: [0, 0.8, 1.4, 2.0, 2.7, 3.5] },
+      base: { launcher: 80, engine: 100, frame: 120, rocket: 150 }, zones: [],
+    },
+    {
+      id: 'hells', name: 'Hells Canyon', place: 'Idaho and Oregon', gapFt: 2800, vehicle: 'mower', vehicleName: 'lawnmower', rate: 2, lb: 520,
+      vals: { launcher: [1500, 1660, 1820, 1990, 2170, 2360], engine: [300, 390, 490, 600, 720, 850], frame: [0.9, 0.84, 0.78, 0.72, 0.67, 0.62], rocket: [1.0, 1.5, 2.0, 2.6, 3.2, 3.8] },
+      base: { launcher: 400, engine: 500, frame: 600, rocket: 750 },
+      // fractions of the gap, and lift in px/s^2 (gravity is 900): three thermals to ride and two sinks to get through
+      zones: [[0.16, 0.24, 620], [0.33, 0.40, -480], [0.47, 0.56, 620], [0.64, 0.70, -480], [0.76, 0.85, 620]],
+    },
+  ];
+  let level = 0;
+  function setLevel(i) {
+    level = Math.max(0, Math.min(LEVELS.length - 1, i | 0));
+    const L = LEVELS[level];
+    W.GAP_FT = L.gapFt; W.GAP = Math.round(L.gapFt * W.PXFT); W.FAR = W.NEAR + W.GAP; W.LB = L.lb;
+    W.ZONES = L.zones.map(([a, b, up]) => ({ x0: W.NEAR + a * W.GAP, x1: W.NEAR + b * W.GAP, up }));
+    for (const k of ORDER) { UPGRADES[k].vals = L.vals[k]; UPGRADES[k].base = L.base[k]; }
+    T.RATE = L.rate; T.PB_RATE = 2 * L.rate;
+    return L;
+  }
+
   // ---- Meter ----------------------------------------------------------
   // m in 0..1 along the bar. Green is the sweet spot; red is an over-wound spring.
   const GREEN0 = 0.716, GREEN1 = 0.869;
@@ -73,8 +103,6 @@ const SRJ = (() => {
   }
 
   // ---- A run ----------------------------------------------------------
-  const T = { CD: 1.5e-5, CL: 1.8e-5, CDI: 2e-5, ROCKET_A: 800, TORQUE: 16, SPIN_DAMP: 2.2, RATE: 1, FLIP_MULT: 0.5, PB_RATE: 2, FRAME_SPIN: 0.2 };
-
   function newRun(up, power) {
     const m = val('frame', up);
     return {
@@ -83,7 +111,7 @@ const SRJ = (() => {
       v: val('launcher', up) * power / Math.sqrt(m), vx: 0, vy: 0,
       fuel: val('rocket', up), boosting: false,
       rot: 0, maxRot: 0, flips: 0,
-      maxAlt: 0, distPx: 0, rimDone: false, below: 0,
+      maxAlt: 0, distPx: 0, rimDone: false, below: 0, zone: 0,
       done: false, outcome: null,
     };
   }
@@ -135,6 +163,10 @@ const SRJ = (() => {
       s.fuel = Math.max(0, s.fuel - dt);
       ax += T.ROCKET_A * Math.cos(s.a); ay += T.ROCKET_A * Math.sin(s.a);
     }
+    s.zone = 0;
+    for (const z of W.ZONES) if (s.x > z.x0 && s.x < z.x1) { // the air eases in over the first and last 250 px of a zone
+      ay += z.up * Math.min(1, Math.min(s.x - z.x0, z.x1 - s.x) / 250); s.zone = z.up > 0 ? 1 : -1;
+    }
     s.vx += ax * dt; s.vy += ay * dt;
     s.x += s.vx * dt; s.y += s.vy * dt;
     // a lighter frame spins up faster once a flip is under way; the first touch of the lean control is unchanged, so steering feels the same
@@ -171,6 +203,7 @@ const SRJ = (() => {
       finish(s, (hit < 2 && Math.abs(ang) < 0.6) ? 'landed' : 'crashland', s.x - W.NEAR);
       return;
     }
+    if (s.rimDone && s.y - W.COM_H > 0 && s.x < W.FAR) { s.rimDone = false; s.below = 0; } // a thermal carried him back above the rim
     if (s.rimDone) {
       s.below += dt;
       if (s.x < W.FAR - 300 && (s.y < -1300 || s.below > 1.6)) finish(s, 'canyon', s.rimX - W.NEAR);
@@ -185,6 +218,6 @@ const SRJ = (() => {
     return { base, trick, pb, total: base + trick + pb };
   }
 
-  return { W, UPGRADES, ORDER, MAX_LVL, cost, val, GREEN0, GREEN1, meterPower, newRun, step, terrain, rampH, slope, payout, T };
+  return { W, LEVELS, setLevel, get level() { return level; }, UPGRADES, ORDER, MAX_LVL, cost, val, GREEN0, GREEN1, meterPower, newRun, step, terrain, rampH, slope, payout, T };
 })();
 if (typeof module !== 'undefined') module.exports = SRJ;

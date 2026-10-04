@@ -20,7 +20,19 @@ A = {
     'frame': 'launcher/meterframe.png', 'red': 'launcher/red_squares.png',
     'helmet': 'scooter/helmet.png', 'hoodie': 'scooter/hoodie.png', 'pants': 'scooter/pants.png', 'shoe': 'scooter/shoe.png', 'face': 'scooter/facehands.png',
 }
+def cliff_only(path, x0=2860):
+    """The landing cliff out of bg_6, without the Snake River's distant wall behind it, for canyons that draw their own."""
+    im = Image.open(path).convert('RGBA').crop((x0, 0, Image.open(path).width, Image.open(path).height))
+    px = im.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            r, g, bl, al = px[x, y]
+            if al and bl - r >= 12 and r > 130 and x < 420: px[x, y] = (r, g, bl, 0)   # hazy blue-grey = the far wall
+    buf = io.BytesIO(); im.save(buf, 'PNG', optimize=True)
+    return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
+
 js = 'const ART = {\n' + ',\n'.join('  %s: "%s"' % (k, b64(os.path.join(ART, v))) for k, v in A.items())
+js += ',\n  bg6c: "%s"' % cliff_only(os.path.join(ART, 'canyon/bg_6.png'))
 js += ',\n  icon: "%s"\n};\n' % b64(os.path.join(ART, 'icon.png'), 260)
 core = open(os.path.join(HERE, 'core.js')).read().replace("if (typeof module !== 'undefined') module.exports = SRJ;", '')
 body = open(os.path.join(HERE, 'page.html')).read().replace('/*__ART__*/', js).replace('/*__CORE__*/', core)

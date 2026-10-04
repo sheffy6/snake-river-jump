@@ -18,6 +18,8 @@ The whole game is `index.html`. Artwork by Kevin.
 
 The canyon walls below the rim, the cape and the crash ragdoll's joints are drawn or defined in `src/page.html`, not in `art/`.
 
+Levels live in `LEVELS` in `src/core.js`: gap, vehicle numbers, pay rate and wind zones. `node src/sim/level2.js` tunes Hells Canyon. Its far ridges, evening tint, wind bands and the stand-in lawnmower are drawn in `src/page.html`.
+
 ## Changing the game
 
 Edit `src/page.html` or `src/core.js`, then run `python3 src/build.py` (needs Pillow). Check the balance with `node src/sim/tune.js`.

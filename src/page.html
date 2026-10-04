@@ -31,6 +31,9 @@ body { background: var(--sky); color: var(--ink); font-family: var(--ui); font-s
 #track { flex: 1; min-width: 0; height: 12px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 8px; position: relative; }
 #track i { position: absolute; top: -5px; width: 4px; height: 17px; margin-left: -2px; border-radius: 2px; }
 #m-best { background: var(--navy); }
+#track b { position: absolute; top: 0; bottom: 0; opacity: 0.55; }
+#track b.up { background: var(--go); }
+#track b.down { background: var(--helmet); }
 #m-now { background: var(--helmet); width: 10px; height: 10px; top: -1.5px; margin-left: -5px; border-radius: 50%; border: 2px solid var(--ink); box-sizing: content-box; }
 #flight { position: absolute; left: 0; right: 0; top: 54px; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 #dist { font-family: var(--display); font-size: clamp(30px, 7vw, 46px); line-height: 1; color: var(--paper); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 3px 3px 0 var(--ink); font-variant-numeric: tabular-nums; }
@@ -153,9 +156,9 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     <div class="card">
       <div class="stripe" id="stripe1"></div>
       <div class="body">
-        <div class="eyebrow">Twin Falls, Idaho · 1,600 feet rim to rim</div>
+        <div class="eyebrow" id="t-eyebrow">Twin Falls, Idaho · 1,600 feet rim to rim</div>
         <h1>Snake River Jump</h1>
-        <p>One scooter, one spring launcher and a canyon you will not clear on the first try. Land it on your wheels on the far side to finish. Every jump pays by the foot, flips pay extra, and the money buys a better scooter.</p>
+        <p id="t-blurb">One scooter, one spring launcher and a canyon you will not clear on the first try. Land it on your wheels on the far side to finish. Every jump pays by the foot, flips pay extra, and the money buys a better scooter.</p>
         <dl class="keys">
           <dt>Launch</dt><dd id="k-launch"><kbd>Space</kbd> or tap when the needle is in the green</dd>
           <dt>Lean</dt><dd id="k-lean"><kbd>←</kbd> back, <kbd>→</kbd> forward. A full spin is a flip.</dd>
@@ -176,7 +179,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
         <p id="s-note" hidden></p>
         <div class="row shophead"><div class="eyebrow">Upgrades</div><div class="chip" id="s-cash">$0</div></div>
         <div class="shop" id="s-shop"></div>
-        <div class="row actions"><button class="big" id="again">Jump again</button><button class="quiet" id="reset">Start over</button></div>
+        <div class="row actions"><span class="row"><button class="big" id="next" hidden>On to the next canyon</button><button class="big" id="again">Jump again</button></span><button class="quiet" id="reset">Start over</button></div>
       </div>
     </div>
   </section>
@@ -197,18 +200,49 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
 
   // ---- save -----------------------------------------------------------
   const KEY = 'srj-save-v1';
-  const fresh = () => ({ cash: 0, best: 0, jumps: 0, won: false, up: { launcher: 0, engine: 0, frame: 0, rocket: 0 } });
+  const fresh = () => ({ cash: 0, best: 0, jumps: 0, ljumps: 0, won: false, lvl: 0, cleared: 0, up: { launcher: 0, engine: 0, frame: 0, rocket: 0 } });
   let save = fresh();
-  function adopt(s) { if (s && s.up) { save = Object.assign(fresh(), s); save.up = Object.assign(fresh().up, s.up); } }
+  function adopt(s) {
+    if (!(s && s.up)) return;
+    save = Object.assign(fresh(), s); save.up = Object.assign(fresh().up, s.up);
+    if (s.ljumps === undefined) save.ljumps = save.jumps;          // saves from before there were levels
+    if (save.won && !save.cleared) save.cleared = 1;
+    save.lvl = Math.max(0, Math.min(SRJ.LEVELS.length - 1, save.lvl | 0));
+  }
   function load() { try { adopt(JSON.parse(localStorage.getItem(KEY))); } catch (e) {} }
   function store() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
 
   // ---- world art ------------------------------------------------------
   const BOT = 133, DEPTH = 5200;
-  const strips = [['bg2', 4094], ['bg3', 8190], ['bg4', 12286], ['bg5', 16382], ['bg6', 20478], ['bg1', 0], ['bg7', 24574], ['bg8', 28670]];
-  const REP_X = 31749, reps = ['rep1', 'rep2', 'rep3', 'rep4'];
+  // Where each strip of canyon art sits. Level 1 is Kevin's scene as drawn; later canyons keep his two cliffs and draw the far side in code.
+  let strips = [], REP_X = 0, tinted = null, L = SRJ.LEVELS[0], blurb0 = '';
+  const reps = ['rep1', 'rep2', 'rep3', 'rep4'];
+  function applyLevel() {
+    L = SRJ.setLevel(save.lvl);
+    if (save.lvl === 0) { strips = [['bg2', 4094], ['bg3', 8190], ['bg4', 12286], ['bg5', 16382], ['bg6', 20478], ['bg1', 0], ['bg7', 24574], ['bg8', 28670]]; REP_X = 31749; }
+    else { const fx = W.FAR - 270; strips = [['bg6c', fx], ['bg1', 0], ['bg7', fx + 1236], ['bg8', fx + 1236 + 4096]]; REP_X = fx + 1236 + 4096 + 3079; }
+    $('t-eyebrow').textContent = L.place + ' · ' + L.gapFt.toLocaleString('en-US') + ' feet rim to rim';
+    if (!blurb0) blurb0 = $('t-blurb').textContent;
+    $('t-blurb').textContent = save.lvl === 0 ? blurb0 : L.name + ' is wider, the wind is up, and the scooter has been swapped for a ' + L.vehicleName + '. Green bands of rising air lift you and red bands of sinking air drop you. Land it on your wheels to finish.';
+    const tr = $('track'); for (const z of [...tr.querySelectorAll('b')]) z.remove();
+    for (const z of W.ZONES) { const el = document.createElement('b'); el.className = z.up > 0 ? 'up' : 'down'; el.style.left = (z.x0 - W.NEAR) / W.GAP * 100 + '%'; el.style.width = (z.x1 - z.x0) / W.GAP * 100 + '%'; tr.prepend(el); }
+  }
+  // Evening light for the later canyons: the same rock with a warm wash over it.
+  function buildTints() {
+    if (tinted) return; tinted = {};
+    const wash = im => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(178,104,52,0.26)'; g.fillRect(0, 0, c.width, c.height); return c; };
+    for (const k of ['bg1', 'bg6c', 'bg7', 'bg8', ...reps]) if (img[k] && img[k].width) tinted[k] = wash(img[k]);
+    if (walls) tinted.walls = walls.map(wash);
+  }
+  const art = k => (save.lvl > 0 && tinted && tinted[k]) || img[k];
+  // The vehicle for this canyon: [image, x, y from the centre of mass in sprite pixels, is it a wheel]
+  const VEH = {
+    scooter: [['bwheel', -98, 53, true], ['fwheel', 97.5, 57.5, true], ['bike', -12, 0.5, false]],
+    mower: [['mwB', -94, 51, true], ['mwF', 93, 68, true], ['mower', -10, 15, false]],
+  };
+  const veh = () => VEH[L.vehicle];
   // sprite pieces: centre offset from the centre of mass (sprite pixels, y down)
-  const PARTS = { bwheel: [-98, 53], fwheel: [97.5, 57.5], bike: [-12, 0.5], rider: [-23, -50.5] };
+  const PARTS = { rider: [-23, -50.5] };
 
   let state = 'title', run = null, roll = null, parts = [], fx = [], doll = null;
   let falling = false;
@@ -313,7 +347,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     snd.init(); snd.stopFall();
     state = 'aim'; run = null; roll = null; parts = []; fx = []; doll = null; runT = 0; meter = 0; meterDir = 1; lastFlips = 0;
     $('title').hidden = true; $('shop').hidden = true; $('flight').hidden = true; $('touch').hidden = true;
-    setHint(coarse ? 'Tap to launch when the needle is in the green' : 'Space or click to launch when the needle is in the green');
+    setHint(W.ZONES.length && save.ljumps < 4 ? 'Green air lifts you, red air drops you. ' + (coarse ? 'Tap' : 'Space') + ' to launch in the green.' : coarse ? 'Tap to launch when the needle is in the green' : 'Space or click to launch when the needle is in the green');
     hud();
   }
   function launch() {
@@ -339,8 +373,8 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     const s = run;
     const pay = SRJ.payout(s.distFt, s.flips, save.best);
     const crossed = s.outcome === 'landed'; // reaching the far side only counts if he lands it
-    result = { outcome: s.outcome, dist: s.distFt, flips: s.flips, pay, gain: Math.max(0, s.distFt - save.best), crossed, first: crossed && !save.won, jump: save.jumps + 1 };
-    save.cash += pay.total; save.best = Math.max(save.best, s.distFt); save.jumps++; if (crossed) save.won = true;
+    result = { outcome: s.outcome, dist: s.distFt, flips: s.flips, pay, gain: Math.max(0, s.distFt - save.best), crossed, first: crossed && save.cleared <= save.lvl, cape: crossed && !save.won, jump: save.ljumps + 1 };
+    save.cash += pay.total; save.best = Math.max(save.best, s.distFt); save.jumps++; save.ljumps++; if (crossed) { save.won = true; save.cleared = Math.max(save.cleared, save.lvl + 1); }
     store();
     state = 'after'; after = 1.5; setHint(''); $('touch').hidden = true;
     held.back = held.fwd = held.boost = false;
@@ -366,9 +400,8 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   function scatter(s) {
     const c = Math.cos(s.a), sn = Math.sin(s.a);
     const bvx = s.outcome === 'wall' ? -Math.abs(s.vx) * 0.25 : s.vx * 0.45, bvy = Math.max(s.vy * 0.3, 0) + 250;
-    parts = ['bwheel', 'fwheel', 'bike'].map(k => {
-      const [lx, ly] = PARTS[k];
-      return { k, x: s.x + lx * c + ly * sn, y: s.y + lx * sn - ly * c, a: s.a, r: k === 'bike' ? 45 : 34,
+    parts = veh().map(([k, lx, ly, wheel]) => {
+      return { k, x: s.x + lx * c + ly * sn, y: s.y + lx * sn - ly * c, a: s.a, r: wheel ? 34 : 45,
         vx: bvx + (Math.random() - 0.5) * 500, vy: bvy + Math.random() * 450, w: (Math.random() - 0.5) * 14 };
     });
     // the rider is thrown clear with some spin, and from here on only his joints are simulated
@@ -420,6 +453,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       if (run.boosting && Math.random() < 0.6) flame(run);
       if (run.mode === 'ground' && Math.random() < 0.08) dust(run.x - 110, run.y - W.COM_H + 6, -80, 40 + Math.random() * 60);
       if (run.rimDone && !falling && run.x < W.FAR - 900) { falling = true; snd.fall(); }
+      if (falling && !run.rimDone) { falling = false; snd.stopFall(); } // rising air carried him back up
       if (run.flips > lastFlips) { lastFlips = run.flips; snd.flip(run.flips); pop(['', 'Flip!', 'Double flip!', 'Triple flip!'][run.flips] || run.flips + ' flips!'); }
       if (run.done) endRun();
     } else if (state === 'after') {
@@ -552,14 +586,57 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   }
   function drawBike(x, y, a) {
     ctx.save(); ctx.translate(x, -y); ctx.rotate(-a);
-    for (const k of ['bwheel', 'fwheel']) {
-      const im = img[k], [lx, ly] = PARTS[k];
-      ctx.save(); ctx.translate(lx, ly); ctx.rotate(spin); ctx.drawImage(im, -im.width / 2, -im.height / 2); ctx.restore();
+    for (const [k, lx, ly, wheel] of veh()) {
+      const im = img[k]; if (!im || !im.width) continue;
+      if (wheel) { ctx.save(); ctx.translate(lx, ly); ctx.rotate(spin); ctx.drawImage(im, -im.width / 2, -im.height / 2); ctx.restore(); }
+      else ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2);
     }
-    { const im = img.bike, [lx, ly] = PARTS.bike; ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2); }
     if (hasCape()) drawCape(CAPE_AT[0], CAPE_AT[1], -Math.sin(a), Math.cos(a), capeWind.lx, capeWind.ly, capeWind.sp, performance.now() / 1000);
     { const im = img.rider, [lx, ly] = PARTS.rider; ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2); }
     ctx.restore();
+  }
+  // Stand-in riding mower, drawn to sit under the same rider pose as the scooter: seat under him, pedals under his shoe, wheel in his hands.
+  function buildMower() {
+    const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.lineJoin = 'round'; g.lineCap = 'round'; return [c, g]; };
+    const RED = '#cf4a3c', RED_D = '#8f2a27', RED_L = '#e2705c', STEEL = '#9a9ca4', STEEL_D = '#55565c', DARK = '#4a4a50', INK = '#2e2e33', CREAM = '#f3e6c4';
+    const [c, g] = mk(300, 170); g.translate(10, -78); // drawn in the scooter's sprite coordinates
+    const shape = (pts, fill, stroke, lw) => { g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.fillStyle = fill; g.fill(); g.strokeStyle = stroke; g.lineWidth = lw || 3.5; g.stroke(); };
+    const rr = (x, y, w, h, r, fill, stroke) => { g.beginPath(); g.roundRect(x, y, w, h, r); g.fillStyle = fill; g.fill(); g.strokeStyle = stroke; g.lineWidth = 3.5; g.stroke(); };
+    // cutting deck slung under the frame, with its little gauge wheel
+    shape([[102, 204], [198, 204], [210, 229], [96, 229]], STEEL, STEEL_D);
+    g.beginPath(); g.moveTo(104, 216); g.lineTo(204, 216); g.strokeStyle = STEEL_D; g.lineWidth = 2.5; g.stroke();
+    g.beginPath(); g.arc(205, 233, 7, 0, 7); g.fillStyle = INK; g.fill();
+    // frame rail and foot plate
+    rr(96, 188, 104, 14, 4, DARK, INK);
+    // rear body, arched over the big wheel like a fender
+    g.beginPath(); g.arc(56, 199, 51, Math.PI, Math.PI * 2 - 0.3, false); g.lineTo(130, 190); g.lineTo(122, 142); g.lineTo(34, 142); g.lineTo(8, 164); g.closePath();
+    g.fillStyle = RED; g.fill(); g.strokeStyle = RED_D; g.lineWidth = 3.5; g.stroke();
+    g.beginPath(); g.moveTo(30, 154); g.lineTo(112, 154); g.strokeStyle = RED_L; g.lineWidth = 5; g.stroke();
+    // seat: cushion and backrest
+    shape([[30, 88], [44, 86], [50, 136], [34, 140]], DARK, INK);
+    rr(38, 128, 78, 18, 7, DARK, INK);
+    // hood, with a stripe, grille slats and a headlight
+    shape([[188, 198], [188, 140], [198, 127], [262, 131], [276, 150], [276, 198]], RED, RED_D);
+    g.beginPath(); g.moveTo(196, 140); g.lineTo(264, 143); g.strokeStyle = RED_L; g.lineWidth = 5; g.stroke();
+    g.beginPath(); g.moveTo(192, 166); g.lineTo(274, 166); g.strokeStyle = CREAM; g.lineWidth = 5; g.stroke();
+    g.strokeStyle = RED_D; g.lineWidth = 2.5; for (const y of [176, 183, 190]) { g.beginPath(); g.moveTo(256, y); g.lineTo(272, y); g.stroke(); }
+    g.beginPath(); g.arc(269, 152, 5.5, 0, 7); g.fillStyle = CREAM; g.fill(); g.strokeStyle = RED_D; g.stroke();
+    // exhaust stack
+    rr(238, 108, 8, 24, 2, STEEL, STEEL_D); rr(235, 103, 14, 7, 3, STEEL_D, INK);
+    // steering column and wheel, up to his hands
+    g.beginPath(); g.moveTo(200, 130); g.lineTo(205, 104); g.strokeStyle = INK; g.lineWidth = 5; g.stroke();
+    g.save(); g.translate(206, 98); g.rotate(0.22); g.beginPath(); g.ellipse(0, 0, 5.5, 18, 0, 0, 7); g.fillStyle = DARK; g.fill(); g.strokeStyle = INK; g.lineWidth = 3; g.stroke(); g.restore();
+    img.mower = c;
+    const wheel = (r, lugs) => {
+      const [w, h] = mk(2 * r + 6, 2 * r + 6); h.translate(r + 3, r + 3);
+      h.beginPath(); h.arc(0, 0, r, 0, 7); h.fillStyle = '#2d2d2d'; h.fill(); h.strokeStyle = '#1c1c1c'; h.lineWidth = 3; h.stroke();
+      h.strokeStyle = '#444'; h.lineWidth = 3; for (let i = 0; i < lugs; i++) { const a = i * Math.PI * 2 / lugs; h.beginPath(); h.moveTo(Math.cos(a) * (r - 9), Math.sin(a) * (r - 9)); h.lineTo(Math.cos(a + 0.12) * (r - 2), Math.sin(a + 0.12) * (r - 2)); h.stroke(); }
+      h.beginPath(); h.arc(0, 0, r * 0.5, 0, 7); h.fillStyle = CREAM; h.fill(); h.strokeStyle = '#8a836e'; h.lineWidth = 3; h.stroke();
+      h.fillStyle = '#8a836e'; for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; h.beginPath(); h.arc(Math.cos(a) * r * 0.3, Math.sin(a) * r * 0.3, r * 0.07 + 1, 0, 7); h.fill(); }
+      h.beginPath(); h.arc(0, 0, r * 0.12, 0, 7); h.fillStyle = RED; h.fill();
+      return w;
+    };
+    img.mwB = wheel(44, 16); img.mwF = wheel(27, 12);
   }
   // One drawn piece laid along the stick between two joints. A and B are that stick's ends in rider.png pixels,
   // (ox, oy) is where the piece sits in rider.png, and the optional crop takes part of an image.
@@ -594,7 +671,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     const g = ctx;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const sky = g.createLinearGradient(0, 0, 0, Hc);
-    sky.addColorStop(0, '#bcd3ee'); sky.addColorStop(0.7, '#dce8f6');
+    if (save.lvl === 0) { sky.addColorStop(0, '#bcd3ee'); sky.addColorStop(0.7, '#dce8f6'); } else { sky.addColorStop(0, '#e8b79a'); sky.addColorStop(0.7, '#fbe6cf'); }
     g.fillStyle = sky; g.fillRect(0, 0, Wc, Hc);
 
     // clouds drift slower than the canyon, so there is something to fly past when the rim is out of view
@@ -610,8 +687,19 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     g.setTransform(z * dpr, 0, 0, z * dpr, -camL * z * dpr, gy * dpr);
     const x0 = camL, x1 = camL + Wc / z;
     g.imageSmoothingQuality = 'medium';
+    if (save.lvl > 0) { // the far side of a deeper canyon: three ranks of ridges fading into the haze
+      const yLow = (Hc - gy) / z + 10, step = Math.max(40, 14 / z);
+      for (const [col, top, amp, sc, ph] of [['#d9bfb4', -330, 250, 3100, 1.3], ['#c4a392', -90, 190, 1900, 4.2], ['#a98672', 120, 150, 1150, 0.4]]) {
+        g.beginPath(); g.moveTo(x0 - step, yLow);
+        for (let x = Math.floor(x0 / step) * step - step; x <= x1 + step; x += step) {
+          const n = Math.sin(x / sc + ph) + 0.5 * Math.sin(x / (sc * 0.37) + ph * 2.1) + 0.3 * Math.abs(((x / (sc * 0.16) + ph) % 2 + 2) % 2 - 1) + 0.14 * Math.abs(((x / (sc * 0.047)) % 2 + 2) % 2 - 1);
+          g.lineTo(x, top - amp * n / 1.9);
+        }
+        g.lineTo(x1 + step, yLow); g.closePath(); g.fillStyle = col; g.fill();
+      }
+    }
     const strip = (k, x) => {
-      const im = img[k]; if (!im || !im.width || x > x1 || x + im.width < x0) return;
+      const im = art(k); if (!im || !im.width || x > x1 || x + im.width < x0) return;
       g.drawImage(im, x, BOT - im.height, im.width + 1, im.height);
       g.drawImage(im, 0, im.height - 1, im.width, 1, x, BOT - 0.5, im.width + 1, DEPTH); // carry the last row down the cliff face
     };
@@ -636,7 +724,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
         } else g.rect(a, BOT - 2, b - a, yBot - BOT + 4);
         g.clip();
         for (let k = 0, y = BOT - 2; y < yBot && k < 6; k++, y += TH) {
-          const im = walls[k % 2], off = (k * 613) % im.width;
+          const im = (save.lvl > 0 && tinted && tinted.walls ? tinted.walls : walls)[k % 2], off = (k * 613) % im.width;
           for (let x = xa - off - (side < 0 ? 0 : 0); x < b; x += im.width) if (x + im.width > a) g.drawImage(im, x, y);
         }
         g.restore();
@@ -656,6 +744,22 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     g.fillStyle = dk; g.fillRect(x0, BOT, x1 - x0, DEPTH);
 
     if (img.sign.width && 3150 > x0 - 200 && 3000 < x1) g.drawImage(img.sign, 3010, 6 - img.sign.height);
+
+    // wind: bands of rising (green) and sinking (red) air, with chevrons drifting the way the air moves
+    if (W.ZONES.length) {
+      const yTop = -gy / z, yEnd = (Hc - gy) / z, tt = performance.now() / 1000;
+      for (const zn of W.ZONES) {
+        if (zn.x1 < x0 || zn.x0 > x1) continue;
+        const up = zn.up > 0, w = zn.x1 - zn.x0;
+        g.fillStyle = up ? 'rgba(96,190,120,0.16)' : 'rgba(176,64,64,0.15)'; g.fillRect(zn.x0, yTop, w, yEnd - yTop);
+        g.strokeStyle = up ? 'rgba(40,130,70,0.5)' : 'rgba(150,40,40,0.48)'; g.lineWidth = Math.max(7, 3 / z); g.lineJoin = 'round'; g.lineCap = 'round';
+        const gap = 420, drift = (tt * (up ? -260 : 200)) % gap, cols = Math.max(2, Math.round(w / 700));
+        for (let c = 0; c < cols; c++) {
+          const cx = zn.x0 + w * (c + 0.5) / cols, k = up ? 1 : -1;
+          for (let y = Math.floor(yTop / gap) * gap + drift + (c % 2) * gap / 2 - gap; y < yEnd + gap; y += gap) { g.beginPath(); g.moveTo(cx - 70, y + 44 * k); g.lineTo(cx, y); g.lineTo(cx + 70, y + 44 * k); g.stroke(); }
+        }
+      }
+    }
 
     // meter on the launcher: the lit bar grows across the painted zones
     if (state === 'aim' || state === 'title') {
@@ -694,7 +798,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   // ---- HUD and shop ---------------------------------------------------
   function hud() {
     $('cash').textContent = fmt(save.cash);
-    $('stat').textContent = 'Jump ' + (save.jumps + (state === 'shop' ? 0 : 1)) + (save.best ? ' · Best ' + save.best.toLocaleString('en-US') + ' ft' : '');
+    $('stat').textContent = 'Jump ' + (save.ljumps + (state === 'shop' ? 0 : 1)) + (save.best ? ' · Best ' + save.best.toLocaleString('en-US') + ' ft' : '');
     $('m-best').style.left = Math.min(100, save.best / W.GAP_FT * 100) + '%';
     $('m-best').hidden = !save.best;
   }
@@ -712,20 +816,24 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     state = 'shop'; const r = result;
     $('flight').hidden = true;
     $('s-eyebrow').textContent = 'Jump ' + r.jump + ' · ' + r.dist.toLocaleString('en-US') + ' ft';
-    $('s-head').textContent = r.first ? 'You cleared the canyon in ' + r.jump + ' jumps' : HEAD[r.outcome];
+    $('s-head').textContent = r.first ? 'You cleared ' + L.name + ' in ' + r.jump + ' jumps' : HEAD[r.outcome];
     const rows = [['Distance, ' + r.dist.toLocaleString('en-US') + ' ft', r.pay.base]];
     if (r.flips) rows.push([(r.flips === 1 ? '1 flip' : r.flips + ' flips') + ', +' + Math.round(r.flips * SRJ.T.FLIP_MULT * 100) + '%', r.pay.trick]);
     if (r.pay.pb) rows.push(['New best, ' + r.gain.toLocaleString('en-US') + ' ft further', r.pay.pb]);
     const pay = $('s-pay'); pay.textContent = '';
     for (const [a, b] of rows) { const d = document.createElement('div'); d.innerHTML = '<span></span><span></span>'; d.children[0].textContent = a; d.children[1].textContent = fmt(b); pay.appendChild(d); }
     const t = document.createElement('div'); t.className = 'total'; t.innerHTML = '<span>This jump</span><span></span>'; t.children[1].textContent = fmt(r.pay.total); pay.appendChild(t);
+    const nextL = SRJ.LEVELS[save.lvl + 1], canGo = !!nextL && save.cleared > save.lvl;
     $('s-note').hidden = !(r.first || r.outcome === 'crashland');
-    $('s-note').textContent = r.first ? 'You earned the cape. He wears it on every jump from now on.' : 'You reached the far side, but it only counts if you land on your wheels.';
-    $('again').textContent = r.crossed ? 'Jump it again' : 'Jump again';
+    $('s-note').textContent = r.outcome === 'crashland' ? 'You reached the far side, but it only counts if you land on your wheels.'
+      : (r.cape ? 'You earned the cape. He wears it on every jump from now on. ' : '') + (nextL ? nextL.name + ' is next: ' + nextL.gapFt.toLocaleString('en-US') + ' feet, on a ' + nextL.vehicleName + '.' : 'That is every canyon built so far.');
+    $('next').hidden = !canGo; if (canGo) $('next').textContent = 'On to ' + nextL.name;
+    $('again').className = canGo ? 'quiet' : 'big';
+    $('again').textContent = r.crossed || canGo ? 'Jump it again' : 'Jump again';
     resetArmed = false; $('reset').textContent = 'Start over';
     renderShop(); hud();
     if (r.pay.total > 0 && !r.crossed) snd.coin();
-    $('shop').hidden = false; $('again').focus({ preventScroll: true });
+    $('shop').hidden = false; (canGo ? $('next') : $('again')).focus({ preventScroll: true });
   }
   function renderShop() {
     $('s-cash').textContent = fmt(save.cash) + ' to spend';
@@ -752,11 +860,16 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   let resetArmed = false;
   $('reset').onclick = () => {
     if (!resetArmed) { resetArmed = true; $('reset').textContent = 'Erase everything?'; return; }
-    save = fresh(); store(); toAim();
+    save = fresh(); store(); applyLevel(); toAim();
   };
   function syncMute() { const b = $('mute'); b.setAttribute('aria-pressed', snd.muted ? 'true' : 'false'); b.setAttribute('aria-label', snd.muted ? 'Sound off' : 'Sound on'); }
   $('mute').onclick = e => { snd.init(); snd.setMuted(!snd.muted); syncMute(); e.currentTarget.blur(); };
   syncMute();
+  function goLevel(i) { // a new canyon: new vehicle, the shop starts again, the cash and the cape come along
+    save.lvl = i; save.up = fresh().up; save.best = 0; save.ljumps = 0; store();
+    buildTints(); applyLevel(); toAim(); pop(L.name);
+  }
+  $('next').onclick = () => goLevel(save.lvl + 1);
   $('again').onclick = toAim;
   $('start').onclick = toAim;
 
@@ -767,7 +880,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     if (e.key === ' ' || e.key === 'Enter') {
       if (state === 'title') { toAim(); e.preventDefault(); return; }
       if (state === 'aim' && !e.repeat) { press(); e.preventDefault(); return; }
-      if (state === 'shop') { toAim(); e.preventDefault(); return; }
+      if (state === 'shop') { if (!$('next').hidden) goLevel(save.lvl + 1); else toAim(); e.preventDefault(); return; }
     }
     if ((e.key === 'm' || e.key === 'M') && !e.repeat) { snd.init(); snd.setMuted(!snd.muted); syncMute(); return; }
     const k = keymap[e.key];
@@ -819,14 +932,14 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       $('k-lean').textContent = 'Hold ↺ to lean back, ↻ to lean forward. A full spin is a flip.';
       $('k-boost').textContent = 'Hold BOOST in the air, once you own a rocket';
     }
+    buildWalls(); buildMower(); applyLevel();
     hud(); camera(0, true);
-    buildWalls();
-    ready.then(() => { resize(); camera(0, true); requestAnimationFrame(frame); });
+    ready.then(() => { if (save.lvl > 0) buildTints(); resize(); camera(0, true); requestAnimationFrame(frame); });
   }
   const hot = window.claude && window.claude.hot;
   if (hot && hot.snapshot) hot.snapshot(() => save);
   if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
 
-  window.__srj = { snd, get state() { return state; }, get run() { return run; }, get save() { return save; }, held, press, setMeter: v => { meter = v; }, tick };
+  window.__srj = { snd, goLevel, get state() { return state; }, get run() { return run; }, get save() { return save; }, held, press, setMeter: v => { meter = v; }, tick };
 })();
 </script>
