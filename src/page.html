@@ -32,8 +32,8 @@ body { background: var(--sky); color: var(--ink); font-family: var(--ui); font-s
 #track i { position: absolute; top: -5px; width: 4px; height: 17px; margin-left: -2px; border-radius: 2px; }
 #m-best { background: var(--navy); }
 #track b { position: absolute; top: 0; bottom: 0; opacity: 0.55; }
-#track b.up { background: var(--go); }
-#track b.down { background: var(--helmet); }
+#track b.rise { background: var(--go); }
+#track b.sink { background: var(--helmet); }
 #m-now { background: var(--helmet); width: 10px; height: 10px; top: -1.5px; margin-left: -5px; border-radius: 50%; border: 2px solid var(--ink); box-sizing: content-box; }
 #flight { position: absolute; left: 0; right: 0; top: 54px; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 #dist { font-family: var(--display); font-size: clamp(30px, 7vw, 46px); line-height: 1; color: var(--paper); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 3px 3px 0 var(--ink); font-variant-numeric: tabular-nums; }
@@ -225,7 +225,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     if (!blurb0) blurb0 = $('t-blurb').textContent;
     $('t-blurb').textContent = save.lvl === 0 ? blurb0 : L.name + ' is wider, the wind is up, and the scooter has been swapped for a ' + L.vehicleName + '. Green bands of rising air lift you and red bands of sinking air drop you. Land it on your wheels to finish.';
     const tr = $('track'); for (const z of [...tr.querySelectorAll('b')]) z.remove();
-    for (const z of W.ZONES) { const el = document.createElement('b'); el.className = z.up > 0 ? 'up' : 'down'; el.style.left = (z.x0 - W.NEAR) / W.GAP * 100 + '%'; el.style.width = (z.x1 - z.x0) / W.GAP * 100 + '%'; tr.prepend(el); }
+    for (const z of W.ZONES) { const el = document.createElement('b'); el.className = z.up > 0 ? 'rise' : 'sink'; /* not 'up': that is the shop card's class */ el.style.left = (z.x0 - W.NEAR) / W.GAP * 100 + '%'; el.style.width = (z.x1 - z.x0) / W.GAP * 100 + '%'; tr.prepend(el); }
   }
   // Evening light for the later canyons: the same rock with a warm wash over it.
   function buildTints() {
