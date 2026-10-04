@@ -847,7 +847,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     const nextL = SRJ.LEVELS[save.lvl + 1], canGo = !!nextL && save.cleared > save.lvl;
     $('s-note').hidden = !(r.first || r.outcome === 'crashland');
     $('s-note').textContent = r.outcome === 'crashland' ? 'You reached the far side, but it only counts if you land on your wheels.'
-      : (r.cape ? 'You earned the cape. He wears it on every jump from now on. ' : '') + (nextL ? nextL.name + ' is next: ' + nextL.gapFt.toLocaleString('en-US') + ' feet, on a ' + nextL.vehicleName + '.' : 'That is every canyon built so far.');
+      : (r.cape ? 'You earned the cape. He wears it on every jump from now on. ' : '') + (nextL ? nextL.name + ' is next: ' + nextL.gapFt.toLocaleString('en-US') + ' feet, on a ' + nextL.vehicleName + '. Your savings go on the ' + nextL.vehicleName + ', so you start there with $0.' : 'That is every canyon built so far.');
     $('next').hidden = !canGo; if (canGo) $('next').textContent = 'On to ' + nextL.name;
     $('again').className = canGo ? 'quiet' : 'big';
     $('again').textContent = r.crossed || canGo ? 'Jump it again' : 'Jump again';
@@ -886,8 +886,8 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   function syncMute() { const b = $('mute'); b.setAttribute('aria-pressed', snd.muted ? 'true' : 'false'); b.setAttribute('aria-label', snd.muted ? 'Sound off' : 'Sound on'); }
   $('mute').onclick = e => { snd.init(); snd.setMuted(!snd.muted); syncMute(); e.currentTarget.blur(); };
   syncMute();
-  function goLevel(i) { // a new canyon: new vehicle, the shop starts again, the cash and the cape come along
-    save.lvl = i; save.up = fresh().up; save.best = 0; save.ljumps = 0; store();
+  function goLevel(i) { // a new canyon: new vehicle, the shop starts again. The savings go on the new vehicle; only the cape comes along
+    save.lvl = i; save.up = fresh().up; save.best = 0; save.ljumps = 0; save.cash = 0; store();
     buildTints(); applyLevel(); toAim(); pop(L.name);
   }
   $('next').onclick = () => goLevel(save.lvl + 1);

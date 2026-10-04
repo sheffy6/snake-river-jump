@@ -36,5 +36,5 @@ function career(p, green, cash) {
     for (;;) { const o = S.ORDER.filter(k => up[k] < S.MAX_LVL && S.cost(k, up[k]) <= cash).sort((a, b) => S.cost(a, up[a]) - S.cost(b, up[b])); if (!o.length) break; cash -= S.cost(o[0], up[o[0]]); up[o[0]]++; } }
   return [jumps, S.ORDER.map(k => up[k]).join('')];
 }
-for (const k of ['good', 'average', 'sloppy', 'none']) { const rs = []; for (let i = 0; i < 12; i++) { seed = 100 + i * 17; rs.push(career(PIL[k], k === 'good' ? 0.65 : 0.5, 1500)); } rs.sort((a, b) => a[0] - b[0]);
+for (const k of ['good', 'average', 'sloppy', 'none']) { const rs = []; for (let i = 0; i < 12; i++) { seed = 100 + i * 17; rs.push(career(PIL[k], k === 'good' ? 0.65 : 0.5, +(process.env.CASH || 0))); } rs.sort((a, b) => a[0] - b[0]);
   console.log(k.padEnd(8), 'jumps to cross: median', rs[6][0], 'range', rs[0][0] + '-' + rs[11][0], '| upgrades', rs[6][1]); }
