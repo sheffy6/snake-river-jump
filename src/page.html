@@ -208,6 +208,9 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     if (s.ljumps === undefined) save.ljumps = save.jumps;          // saves from before there were levels
     if (save.won && !save.cleared) save.cleared = 1;
     save.lvl = Math.max(0, Math.min(SRJ.LEVELS.length - 1, save.lvl | 0));
+    // a damaged save must not lock the shop or print $NaN
+    for (const k of ORDER) save.up[k] = Math.max(0, Math.min(MAX_LVL, save.up[k] | 0));
+    for (const k of ['cash', 'best', 'jumps', 'ljumps', 'cleared']) save[k] = Math.max(0, Math.round(+save[k]) || 0);
   }
   function load() { try { adopt(JSON.parse(localStorage.getItem(KEY))); } catch (e) {} }
   function store() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
@@ -845,8 +848,10 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     for (const [a, b] of rows) { const d = document.createElement('div'); d.innerHTML = '<span></span><span></span>'; d.children[0].textContent = a; d.children[1].textContent = fmt(b); pay.appendChild(d); }
     const t = document.createElement('div'); t.className = 'total'; t.innerHTML = '<span>This jump</span><span></span>'; t.children[1].textContent = fmt(r.pay.total); pay.appendChild(t);
     const nextL = SRJ.LEVELS[save.lvl + 1], canGo = !!nextL && save.cleared > save.lvl;
-    $('s-note').hidden = !(r.first || r.outcome === 'crashland');
-    $('s-note').textContent = r.outcome === 'crashland' ? 'You reached the far side, but it only counts if you land on your wheels.'
+    const maxed = ORDER.every(k => save.up[k] >= MAX_LVL) && !r.crossed && r.outcome !== 'crashland';
+    $('s-note').hidden = !(r.first || r.outcome === 'crashland' || maxed);
+    $('s-note').textContent = maxed ? 'Everything is maxed, so the rest is flying. Hold boost from take-off with the nose well up, then keep the nose a little above your path and glide. Spinning costs distance.'
+      : r.outcome === 'crashland' ? 'You reached the far side, but it only counts if you land on your wheels.'
       : (r.cape ? 'You earned the cape. He wears it on every jump from now on. ' : '') + (nextL ? nextL.name + ' is next: ' + nextL.gapFt.toLocaleString('en-US') + ' feet, on a ' + nextL.vehicleName + '. Your savings go on the ' + nextL.vehicleName + ', so you start there with $0.' : 'That is every canyon built so far.');
     $('next').hidden = !canGo; if (canGo) $('next').textContent = 'On to ' + nextL.name;
     $('again').className = canGo ? 'quiet' : 'big';
@@ -854,7 +859,8 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     resetArmed = false; $('reset').textContent = 'Start over';
     renderShop(); hud();
     if (r.pay.total > 0 && !r.crossed) snd.coin();
-    $('shop').hidden = false; (canGo ? $('next') : $('again')).focus({ preventScroll: true });
+    shopArmed = !keyDown; // a key still held from the flight must not press a button here
+    $('shop').hidden = false; $('again').focus({ preventScroll: true });
   }
   function renderShop() {
     $('s-cash').textContent = fmt(save.cash) + ' to spend';
@@ -896,19 +902,26 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
 
   // ---- input ----------------------------------------------------------
   const keymap = { ArrowLeft: 'back', a: 'back', A: 'back', ArrowRight: 'fwd', d: 'fwd', D: 'fwd', ' ': 'boost', ArrowUp: 'boost', w: 'boost', W: 'boost' };
+  let keyDown = false, shopArmed = true;
   window.addEventListener('keydown', e => {
-    if (e.target && e.target.tagName === 'BUTTON' && (e.key === ' ' || e.key === 'Enter')) return;
-    if (e.key === ' ' || e.key === 'Enter') {
+    const go = e.key === ' ' || e.key === 'Enter';
+    if (go) keyDown = true;
+    if (go && state === 'shop' && !shopArmed) { e.preventDefault(); return; }
+    if (e.target && e.target.tagName === 'BUTTON' && go) return;
+    if (go) {
       if (state === 'title') { toAim(); e.preventDefault(); return; }
       if (state === 'aim' && !e.repeat) { press(); e.preventDefault(); return; }
-      if (state === 'shop') { if (!$('next').hidden) goLevel(save.lvl + 1); else toAim(); e.preventDefault(); return; }
+      if (state === 'shop') { if (!e.repeat) toAim(); e.preventDefault(); return; } // the next canyon wipes the shop, so it takes a deliberate click
     }
     if ((e.key === 'm' || e.key === 'M') && !e.repeat) { snd.init(); snd.setMuted(!snd.muted); syncMute(); return; }
     const k = keymap[e.key];
     if (k && state === 'run') { held[k] = true; e.preventDefault(); }
   });
-  window.addEventListener('keyup', e => { const k = keymap[e.key]; if (k) held[k] = false; });
-  window.addEventListener('blur', () => { held.back = held.fwd = held.boost = false; });
+  window.addEventListener('keyup', e => {
+    const k = keymap[e.key]; if (k) held[k] = false;
+    if (e.key === ' ' || e.key === 'Enter') { keyDown = false; if (state === 'shop' && !shopArmed) { shopArmed = true; e.preventDefault(); } }
+  });
+  window.addEventListener('blur', () => { held.back = held.fwd = held.boost = false; keyDown = false; shopArmed = true; });
   cv.addEventListener('pointerdown', e => {
     if (state === 'aim') press();
     else if (state === 'run' && e.pointerType === 'mouse') held.boost = true;

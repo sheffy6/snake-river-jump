@@ -34,6 +34,7 @@ const SRJ = (() => {
     return W.LAND;
   }
   function slope(x) {
+    x = Math.min(x, W.RAMP_X1 - 4); // never sample past the lip, or the last few pixels read as a flatter ramp
     return Math.atan2(rampH(x + 4) - rampH(x - 4), 8);
   }
 
@@ -128,7 +129,7 @@ const SRJ = (() => {
     s.done = true; s.outcome = outcome;
     s.distPx = Math.max(0, distPx);
     s.distFt = Math.round(s.distPx / W.PXFT);
-    if (outcome === 'wall') s.distFt = W.GAP_FT - 1;
+    if (outcome === 'wall') s.distFt = Math.min(s.distFt, W.GAP_FT - 1);
     if (outcome === 'landed' || outcome === 'crashland') s.distFt = Math.max(W.GAP_FT, s.distFt);
   }
 
@@ -208,7 +209,7 @@ const SRJ = (() => {
     }
     if (hit >= 0) {
       if (s.x < W.NEAR + 40) { finish(s, 'near', 0); return; }
-      if (s.y - W.COM_H < W.LAND - 60) { finish(s, 'wall', W.GAP - 1); return; }
+      if (s.y - W.COM_H < W.LAND - 60) { finish(s, 'wall', s.rimDone ? s.rimX - W.NEAR : W.GAP - 1); return; }
       let ang = s.a % (2 * Math.PI);
       if (ang > Math.PI) ang -= 2 * Math.PI; if (ang < -Math.PI) ang += 2 * Math.PI;
       finish(s, (hit < 2 && Math.abs(ang) < 0.6) ? 'landed' : 'crashland', s.x - W.NEAR);
