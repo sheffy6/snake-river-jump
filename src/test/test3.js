@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
   const p = await (await b.newContext({ viewport: { width: 1100, height: 650 } })).newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
   await p.goto('file://' + require('path').resolve(__dirname, '../../index.html')); await p.waitForTimeout(600);
-  await p.click('#start'); await p.waitForTimeout(200);
+  await p.click('#start'); await p.click('#gotit'); await p.waitForTimeout(200);
   const r = await p.evaluate(async () => {
     const s = window.__srj.snd, out = {};
     for (const k of ['twang', 'flip', 'thud', 'fall', 'stopFall', 'poof', 'coin', 'buy', 'win', 'sad']) { try { s[k](k === 'twang' ? 1 : k === 'flip' ? 2 : true); out[k] = 'ok'; } catch (e) { out[k] = String(e); } }

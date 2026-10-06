@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
     p.on('pageerror', e => errs.push(name + ': ' + e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(name + ' console: ' + m.text()); });
     await p.goto('file://' + require('path').resolve(__dirname, '../../index.html')); await p.waitForTimeout(900);
     await p.screenshot({ path: `shot-${name}-1title.png` });
-    await p.click('#start'); await p.waitForTimeout(300);
+    await p.click('#start'); await p.click('#gotit'); await p.waitForTimeout(300);
     await p.evaluate(() => window.__srj.setMeter(0.78)); await p.screenshot({ path: `shot-${name}-2aim.png` });
     await p.evaluate(() => { window.__srj.setMeter(0.78); window.__srj.press(); });
     await p.waitForTimeout(2600); await p.screenshot({ path: `shot-${name}-3ramp.png` });

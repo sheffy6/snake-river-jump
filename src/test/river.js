@@ -10,7 +10,7 @@ const OUT = process.env.SHOTS || require('os').tmpdir();
     const shot = n => p.screenshot({ path: path.join(OUT, tag + '-' + n + '.png') });
     await p.goto('file://' + path.resolve(__dirname, '../../index.html')); await p.waitForTimeout(700);
     await p.evaluate(() => { const s = window.__srj.save; s.up.launcher = s.up.engine = s.up.frame = s.up.rocket = 2; s.best = s.st.best = 300; s.ljumps = s.jumps = 5; });
-    await p.click('#start'); await p.waitForTimeout(400); await shot('1aim');
+    await p.click('#start'); await p.click('#gotit'); await p.waitForTimeout(400); await shot('1aim');
     const jump = async (hold, name) => {
       await p.evaluate(() => { window.__srj.setMeter(0.78); window.__srj.press(); });
       await p.waitForFunction(() => window.__srj.run.mode === 'air', null, { timeout: 15000 });

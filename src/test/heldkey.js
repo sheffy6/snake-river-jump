@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   const p = await (await b.newContext({ viewport: { width: 1200, height: 700 } })).newPage(); const errs = [];
   p.on('pageerror', e => errs.push(e.message));
   await p.goto('file://' + require('path').resolve(__dirname, '../../index.html')); await p.waitForTimeout(700);
-  await p.click('#start'); await p.waitForTimeout(300);
+  await p.click('#start'); await p.click('#gotit'); await p.waitForTimeout(300);
   await p.evaluate(() => { window.__srj.save.cash = 5000; window.__srj.setMeter(0.78); window.__srj.press(); });
   await p.waitForFunction(() => window.__srj.run.mode === 'air', null, { timeout: 15000 });
   await p.keyboard.down(' ');

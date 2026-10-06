@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
   const p = await ctx.newPage(); p.on('pageerror', e => errs.push(e.message));
   await p.goto(url); await p.waitForTimeout(800);
   console.log('old save →', JSON.stringify(await p.evaluate(() => { const s = window.__srj.save; return { lvl: s.lvl, cleared: s.cleared, won: s.won, ljumps: s.ljumps, cash: s.cash }; })), '| title:', await p.textContent('#t-eyebrow'));
-  await p.click('#start'); await p.waitForTimeout(300);
+  await p.click('#start'); await p.click('#gotit'); await p.waitForTimeout(300);
   const fly = async (shots) => {
     await p.evaluate(() => { window.__srj.setMeter(0.78); window.__srj.press(); });
     await p.evaluate(() => { clearInterval(window.__pilot); window.__pilot = setInterval(() => { const g = window.__srj, s = g.run; if (!s || s.mode !== 'air' || g.state !== 'run') return; const va = Math.atan2(s.vy, s.vx); let t = Math.max(-0.5, Math.min(0.75, va + 0.42)); let c = Math.atan2(Math.sin(s.a), Math.cos(s.a)); const e = t - c - s.w * 0.25; g.held.back = e > 0.05; g.held.fwd = e < -0.05; g.held.boost = true; }, 8); });

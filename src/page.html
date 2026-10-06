@@ -59,6 +59,10 @@ body { background: var(--sky); color: var(--ink); font-family: var(--ui); font-s
 .helmets.fresh img:nth-child(2) { animation-delay: 0.25s; } .helmets.fresh img:nth-child(3) { animation-delay: 0.5s; }
 @keyframes helmet { 0% { transform: scale(0) rotate(-40deg); } 100% { transform: none; } }
 .helmets span { font-weight: 700; margin-left: 4px; }
+#brief { position: absolute; left: 50%; top: 58px; transform: translateX(-50%); width: min(430px, calc(100% - 32px)); background: var(--paper); border: 3px solid var(--ink); border-radius: 12px; box-shadow: 4px 4px 0 var(--ink); padding: 8px 14px 10px; pointer-events: none; display: grid; gap: 3px; }
+#brief .deals { font-size: 18px; font-weight: 600; }
+#brief small { color: #7a7566; font-size: 15px; }
+#intro .deals { font-size: 18px; font-weight: 600; background: var(--paper-2); border: 2.5px solid var(--ink); border-radius: 10px; padding: 8px 12px; }
 #pop { position: absolute; left: 0; right: 0; top: 34%; text-align: center; font-family: var(--display); font-size: clamp(26px, 6vw, 44px); color: var(--scooter); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 3px 3px 0 var(--ink); pointer-events: none; opacity: 0; }
 #pop.show { animation: pop 1.1s ease-out both; }
 @keyframes pop { 0% { opacity: 0; transform: scale(0.6) rotate(-4deg); } 15% { opacity: 1; transform: scale(1.08) rotate(-4deg); } 70% { opacity: 1; transform: scale(1) rotate(-4deg); } 100% { opacity: 0; transform: translateY(-24px) rotate(-4deg); } }
@@ -149,6 +153,10 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   #flight { top: 40px; }
   #dist { font-size: 30px; }
   .helmets img { height: 30px; }
+  #brief { top: 42px; padding: 4px 12px 6px; gap: 1px; width: min(400px, calc(100% - 32px)); }
+  #brief .deals { font-size: 15px; }
+  #brief small { font-size: 13px; }
+  #intro .body { display: flex; }
   #deals { top: 40px; gap: 3px; }
   #deals .chip { font-size: 13px; padding: 1px 6px; }
   .deals { font-size: 14px; }
@@ -172,6 +180,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     <div id="sub"><div class="chip" id="alt" hidden></div><div class="chip" id="flips" hidden></div><div id="fuel" hidden><b id="fuelbar"></b></div></div>
   </div>
   <div id="deals" hidden aria-label="Sponsor contracts"></div>
+  <div id="brief" hidden><div class="eyebrow">★ Sponsor bonus this jump</div><div class="deals" id="b-deals"></div><small>Pull off either one and the sponsor pays on top.</small></div>
   <div id="pop" aria-live="polite"></div>
   <div id="hint" hidden><span id="hinttext"></span></div>
   <div id="touch" hidden>
@@ -197,6 +206,19 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     </div>
   </section>
 
+  <section class="panel" id="intro" hidden>
+    <div class="card">
+      <div class="body">
+        <div class="eyebrow">★ New: sponsors</div>
+        <h2>Somebody wants to pay you for this</h2>
+        <p>Before every jump, two sponsors each name a stunt and a price. Pull off either one during the jump and they pay you on top of the usual money. One always wants a bigger jump. The other wants style.</p>
+        <div class="deals" id="i-deals"></div>
+        <p>You will see both offers above the launcher before you go, and in the corner while you fly. Do one and a new offer takes its place. Ignore one for five jumps and the sponsor gets bored and asks for something else.</p>
+        <div class="row"><button class="big" id="gotit">Got it</button></div>
+      </div>
+    </div>
+  </section>
+
   <section class="panel" id="shop" hidden>
     <div class="card">
       <div class="stripe" id="stripe2"></div>
@@ -206,7 +228,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
         <div class="helmets" id="s-helmets" hidden></div>
         <div class="pay" id="s-pay"></div>
         <p id="s-note" hidden></p>
-        <div><div class="eyebrow">Sponsors want</div><div class="deals" id="s-deals"></div></div>
+        <div><div class="eyebrow">★ Sponsor bonus next jump</div><div class="deals" id="s-deals"></div></div>
         <div class="row shophead"><div class="eyebrow">Upgrades</div><div class="chip" id="s-cash">$0</div></div>
         <div class="shop" id="s-shop"></div>
         <div class="row actions"><span class="row"><button class="big" id="next" hidden>On to the next canyon</button><button class="big" id="again">Jump again</button></span><span class="row"><button class="quiet" id="retry" hidden>Retry this canyon</button><button class="quiet" id="reset">Start over</button></span></div>
@@ -230,7 +252,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
 
   // ---- save -----------------------------------------------------------
   const KEY = 'srj-save-v1';
-  const fresh = () => ({ cash: 0, best: 0, jumps: 0, ljumps: 0, won: false, lvl: 0, cleared: 0, up: { launcher: 0, engine: 0, frame: 0, rocket: 0 }, st: SRJ.newStats(), con: null, medal: {} });
+  const fresh = () => ({ cash: 0, best: 0, jumps: 0, ljumps: 0, won: false, lvl: 0, cleared: 0, up: { launcher: 0, engine: 0, frame: 0, rocket: 0 }, st: SRJ.newStats(), con: null, medal: {}, seenCon: false });
   let save = fresh();
   function adopt(s) {
     if (!(s && s.up)) return;
@@ -388,7 +410,17 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     state = 'aim'; run = null; roll = null; sink = null; parts = []; fx = []; doll = null; runT = 0; shake = 0; meter = 0; meterDir = 1; lastFlips = 0;
     $('title').hidden = true; $('shop').hidden = true; $('flight').hidden = true; $('touch').hidden = true;
     setHint(L.wings && save.ljumps < 6 ? (save.up.frame > 0 ? 'Nose a little above your path. Too high and the wings quit on you.' : 'It flies better with wings. They are in the shop. ' + (coarse ? 'Tap' : 'Space') + ' to launch in the green.') : coarse ? 'Tap to launch when the needle is in the green' : 'Space or click to launch when the needle is in the green');
-    hud(); deals();
+    hud(); deals(); $('deals').hidden = true;
+    dealRows($('b-deals')); $('brief').hidden = false;
+    if (!save.seenCon) { state = 'intro'; dealRows($('i-deals')); $('intro').hidden = false; $('brief').hidden = true; setHintKeep(); $('gotit').focus({ preventScroll: true }); }
+  }
+  let heldHint = '';
+  function setHintKeep() { heldHint = $('hinttext').textContent; setHint(''); }
+  function closeIntro() { if (state !== 'intro') return; save.seenCon = true; store(); $('intro').hidden = true; $('brief').hidden = false; state = 'aim'; meter = 0; meterDir = 1; setHint(heldHint); }
+  // the offers as rows: what they want on the left, what it pays on the right
+  function dealRows(box) {
+    box.textContent = '';
+    for (const c of save.con.list) { const d = document.createElement('div'), a = document.createElement('span'), b = document.createElement('span'); a.textContent = SRJ.contractText(c); b.textContent = '+' + fmt(c.pay); d.append(a, b); box.appendChild(d); }
   }
   // the two sponsor contracts on offer, as chips under the HUD
   function deals(metList) {
@@ -403,6 +435,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     snd.twang(power);
     pop(meter > SRJ.GREEN1 ? 'Sproing! Too much' : meter >= SRJ.GREEN0 ? 'Sweet spot!' : meter > 0.5 ? 'Not bad' : 'Limp spring');
     for (let i = 0; i < 14; i++) dust(W.START - 110, 10 + Math.random() * 40, -200 - Math.random() * 300, 60 + Math.random() * 160);
+    $('brief').hidden = true; $('deals').hidden = false;
     $('flight').hidden = false; $('flips').hidden = true; $('flips').className = 'chip'; $('alt').hidden = true;
     $('fuel').hidden = !(run.fuel > 0);
     $('touch').hidden = !coarse; $('tb-boost').hidden = !(run.fuel > 0);
@@ -1013,7 +1046,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
 
   function openShop() {
     state = 'shop'; const r = result;
-    $('flight').hidden = true; $('deals').hidden = true;
+    $('flight').hidden = true; $('deals').hidden = true; $('brief').hidden = true;
     $('s-eyebrow').textContent = 'Jump ' + r.jump + ' · ' + r.dist.toLocaleString('en-US') + ' ft';
     $('s-head').textContent = r.record ? L.name + ', cleared in ' + r.jump + (r.jump === 1 ? ' jump!' : ' jumps!') : r.outcome === 'canyon' && !r.clean ? r.crash : r.outcome === 'canyon' && r.flips ? 'Clean splash' : HEAD[r.outcome];
     const rows = [['Distance, ' + r.dist.toLocaleString('en-US') + ' ft', r.pay.base]];
@@ -1100,6 +1133,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   $('next').onclick = () => goLevel(save.lvl + 1);
   $('again').onclick = toAim;
   $('start').onclick = toAim;
+  $('gotit').onclick = closeIntro;
 
   // ---- input ----------------------------------------------------------
   const keymap = { ArrowLeft: 'back', a: 'back', A: 'back', ArrowRight: 'fwd', d: 'fwd', D: 'fwd', ' ': 'boost', ArrowUp: 'boost', w: 'boost', W: 'boost' };
@@ -1111,6 +1145,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     if (e.target && e.target.tagName === 'BUTTON' && go) return;
     if (go) {
       if (state === 'title') { toAim(); e.preventDefault(); return; }
+      if (state === 'intro') { if (!e.repeat) closeIntro(); e.preventDefault(); return; }
       if (state === 'aim' && !e.repeat) { press(); e.preventDefault(); return; }
       if (state === 'shop') { if (!e.repeat) toAim(); e.preventDefault(); return; } // the next canyon wipes the shop, so it takes a deliberate click
     }

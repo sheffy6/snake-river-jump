@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
     const p = await ctx.newPage(); p.on('pageerror', e => errs.push(name + ': ' + e.message));
     await p.goto('file://' + require('path').resolve(__dirname, '../../index.html')); await p.waitForTimeout(800);
     await p.screenshot({ path: `ls-${name}-1title.png` });
-    await p.tap('#start'); await p.waitForTimeout(300); await p.evaluate(() => window.__srj.setMeter(0.6)); await p.screenshot({ path: `ls-${name}-2aim.png` });
+    await p.tap('#start'); await p.tap('#gotit'); await p.waitForTimeout(300); await p.evaluate(() => window.__srj.setMeter(0.6)); await p.screenshot({ path: `ls-${name}-2aim.png` });
     await p.evaluate(() => { window.__srj.setMeter(0.78); window.__srj.press(); });
     await p.waitForFunction(() => window.__srj.run && window.__srj.run.mode === 'air', null, { timeout: 15000 }); await p.waitForTimeout(400); await p.screenshot({ path: `ls-${name}-3air.png` });
     await p.waitForFunction(() => window.__srj.state === 'shop', null, { timeout: 15000 }); await p.waitForTimeout(200); await p.screenshot({ path: `ls-${name}-4shop.png` });
