@@ -211,7 +211,7 @@ const SRJ = (() => {
     if (hit >= 0) {
       let ang = s.a % (2 * Math.PI);
       if (ang > Math.PI) ang -= 2 * Math.PI; if (ang < -Math.PI) ang += 2 * Math.PI;
-      if (wet) { // into the river: wheels first and roughly upright is a clean splash, anything else is a belly flop
+      if (wet) { // into the river: wheels first and roughly upright is a clean splash, anything else is a wipeout
         s.clean = hit < 2 && Math.abs(ang) < T.CLEAN;
         finish(s, 'canyon', (s.rimDone ? s.rimX : s.x) - W.NEAR); return;
       }

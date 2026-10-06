@@ -1,4 +1,4 @@
-// The river: a hands-off jump ends in a clean splash, a spin held to the water is a belly flop that loses its flips.
+// The river: a hands-off jump ends in a clean splash, a spin held to the water is a wipeout that loses its flips.
 // Screenshots go to SHOTS (default: the system temp dir) so they never land in the repo.
 const { chromium } = require('playwright'), path = require('path');
 const OUT = process.env.SHOTS || require('os').tmpdir();
@@ -26,7 +26,7 @@ const OUT = process.env.SHOTS || require('os').tmpdir();
     const clean = await jump({ boost: true }, '2clean');
     await p.click('#again'); await p.waitForTimeout(200);
     const flop = await jump({ back: true, boost: true }, '3flop');
-    ok = ok && /river|splash/i.test(clean.head) && flop.head === 'Belly flop' && /lost in the flop/.test(flop.pay);
+    ok = ok && /river|splash/i.test(clean.head) && /Head first|Wipeout|Nosedive|Tail first|Flat on his back/.test(flop.head) && /lost in the wipeout/.test(flop.pay);
     await p.close();
   }
   console.log(ok ? 'PASS' : 'FAIL', '| errors:', errs.length ? errs : 'none'); await b.close();

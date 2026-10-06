@@ -422,6 +422,11 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     canyon: 'Splashdown', wall: 'Met the far wall', near: 'Barely left the cliff', stall: 'Ran out of puff on the ramp',
     landed: 'Nailed it', crashland: 'So close. Faceplant.',
   };
+  // What to call a bad landing in the river, from the way he was pointing when he hit
+  function crashName(s) {
+    const a = Math.atan2(Math.sin(s.a), Math.cos(s.a)), d = Math.abs(a);
+    return d > 2.3 ? 'Head first' : d < 0.75 ? 'Wipeout' : a < 0 ? (d < 1.9 ? 'Nosedive' : 'Head first') : d < 1.4 ? 'Tail first' : 'Flat on his back';
+  }
   function endRun() {
     const s = run;
     const pay = SRJ.payout(s.distFt, s.clean ? s.flips : 0, save.best); // flips are only banked if he ended the right way up
@@ -429,7 +434,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     save.st.best = save.best; if (!save.con) save.con = SRJ.newContracts(save.st, save.up);
     const paid = SRJ.settleContracts(save.con, save.st, s, save.up), bonus = paid.reduce((a, c) => a + c.pay, 0);
     const jump = save.ljumps + 1, prev = save.medal[L.id], record = crossed && (prev === undefined || jump < prev);
-    result = { outcome: s.outcome, dist: s.distFt, flips: s.flips, clean: s.clean, pay, paid, bonus, gain: Math.max(0, s.distFt - save.best), crossed, first: crossed && save.cleared <= save.lvl, record, cape: crossed && !save.won, jump,
+    result = { outcome: s.outcome, dist: s.distFt, flips: s.flips, clean: s.clean, crash: crashName(s), pay, paid, bonus, gain: Math.max(0, s.distFt - save.best), crossed, first: crossed && save.cleared <= save.lvl, record, cape: crossed && !save.won, jump,
       over: lastMeter > SRJ.GREEN1, leaned: leanT > 0.25, idleRocket: s.up.rocket > 0 && !s.boosted };
     save.cash += pay.total + bonus; save.best = Math.max(save.best, s.distFt); save.jumps++; save.ljumps++; if (crossed) { save.won = true; save.cleared = Math.max(save.cleared, save.lvl + 1); }
     if (record) save.medal[L.id] = jump;
@@ -449,9 +454,9 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       if (s.clean) { // wheels first: he goes in upright and bobs back up still in the saddle
         sink = { x: s.x, y: s.y, a: s.a, vx: s.vx * 0.25, vy: s.vy * 0.3 }; after = 1.5; snd.splash(false); shake = 6;
         if (s.flips) pop(s.flips === 1 ? 'Clean! Flip banked' : 'Clean! ' + s.flips + ' flips banked');
-      } else { // anything else is a belly flop: he is thrown off and the flips are lost
+      } else { // anything else is a wipeout: he is thrown off and the flips are lost
         scatter(s); after = 1.9; snd.splash(true); shake = 14;
-        pop(s.flips ? 'Belly flop! Flips lost' : 'Belly flop! Oof');
+        pop(s.flips ? crashName(s) + '! Flips lost' : crashName(s) + '!');
       }
     } else if (s.outcome === 'stall') {
       after = 0.9; snd.sad();
@@ -1010,11 +1015,11 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     state = 'shop'; const r = result;
     $('flight').hidden = true; $('deals').hidden = true;
     $('s-eyebrow').textContent = 'Jump ' + r.jump + ' · ' + r.dist.toLocaleString('en-US') + ' ft';
-    $('s-head').textContent = r.record ? L.name + ', cleared in ' + r.jump + (r.jump === 1 ? ' jump!' : ' jumps!') : r.outcome === 'canyon' && !r.clean ? 'Belly flop' : r.outcome === 'canyon' && r.flips ? 'Clean splash' : HEAD[r.outcome];
+    $('s-head').textContent = r.record ? L.name + ', cleared in ' + r.jump + (r.jump === 1 ? ' jump!' : ' jumps!') : r.outcome === 'canyon' && !r.clean ? r.crash : r.outcome === 'canyon' && r.flips ? 'Clean splash' : HEAD[r.outcome];
     const rows = [['Distance, ' + r.dist.toLocaleString('en-US') + ' ft', r.pay.base]];
     const fl = r.flips === 1 ? '1 flip' : r.flips + ' flips';
     if (r.flips && r.clean) rows.push([fl + ', landed upright, +' + Math.round(SRJ.flipBonus(r.flips) * 100) + '%', r.pay.trick]);
-    else if (r.flips) rows.push([fl + ', lost in the flop', Math.round(r.pay.base * SRJ.flipBonus(r.flips)), true]);
+    else if (r.flips) rows.push([fl + ', lost in the wipeout', Math.round(r.pay.base * SRJ.flipBonus(r.flips)), true]);
     if (r.pay.pb) rows.push(['New best, ' + r.gain.toLocaleString('en-US') + ' ft further', r.pay.pb]);
     const pay = $('s-pay'); pay.textContent = '';
     for (const c of r.paid) rows.push(['★ Sponsor: ' + SRJ.contractText(c), c.pay]);
