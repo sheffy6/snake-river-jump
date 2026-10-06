@@ -655,7 +655,7 @@ const SRJ = (() => {
   // ---- sound: everything is synthesised, there are no audio files -----
   const snd = (() => {
     let ac = null, master, noise, muted = false;
-    let engA, engB, engF, engG, windF, windG, rkG, fallO = null, fallG = null;
+    let engA, engB, engF, engG, rkG, fallO = null, fallG = null;
     try { muted = localStorage.getItem('srj-mute') === '1'; } catch (e) {}
     const VOL = 0.55;
     function loopNoise(filterType, freq, q) {
@@ -677,7 +677,6 @@ const SRJ = (() => {
         engF = ac.createBiquadFilter(); engF.type = 'lowpass'; engF.frequency.value = 300; engG = ac.createGain(); engG.gain.value = 0;
         const half = ac.createGain(); half.gain.value = 0.5;
         engA.connect(engF); engB.connect(half); half.connect(engF); engF.connect(engG); engG.connect(master); engA.start(); engB.start();
-        [windF, windG] = loopNoise('bandpass', 500, 0.7);
         rkG = loopNoise('lowpass', 1100, 0.5)[1];
         if (ac.state === 'suspended') ac.resume();
       } catch (e) { ac = null; }
@@ -690,8 +689,6 @@ const SRJ = (() => {
       else if (st === 'run') { f = 50 + sp / 13; g = air ? 0.045 : 0.1; }
       else if (rolling) { f = 50 + sp / 13; g = 0.06; }
       to(engA.frequency, f); to(engB.frequency, f / 2); to(engF.frequency, 280 + sp / 3); to(engG.gain, g);
-      const w = air ? Math.min(1, sp / 3400) : 0;
-      to(windG.gain, 0.09 * Math.pow(w, 1.4), 0.12); to(windF.frequency, 350 + sp / 2.2, 0.12);
       to(rkG.gain, boosting ? 0.32 : 0, 0.04);
     }
     function tone(type, f0, f1, dur, vol, when, slide) {
