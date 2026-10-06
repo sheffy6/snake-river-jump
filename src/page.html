@@ -52,6 +52,13 @@ body { background: var(--sky); color: var(--ink); font-family: var(--ui); font-s
 .deals div span:last-child { font-weight: 700; color: var(--go); white-space: nowrap; }
 .deals small { color: #7a7566; font-size: 14px; }
 .pay div.lost span { text-decoration: line-through; color: #8a8578; }
+.helmets { display: flex; gap: 8px; align-items: center; }
+.helmets img { height: 46px; width: auto; }
+.helmets img.off { filter: grayscale(1); opacity: 0.25; }
+.helmets.fresh img:not(.off) { animation: helmet 0.5s cubic-bezier(.2,1.6,.4,1) both; }
+.helmets.fresh img:nth-child(2) { animation-delay: 0.25s; } .helmets.fresh img:nth-child(3) { animation-delay: 0.5s; }
+@keyframes helmet { 0% { transform: scale(0) rotate(-40deg); } 100% { transform: none; } }
+.helmets span { font-weight: 700; margin-left: 4px; }
 #pop { position: absolute; left: 0; right: 0; top: 34%; text-align: center; font-family: var(--display); font-size: clamp(26px, 6vw, 44px); color: var(--scooter); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 3px 3px 0 var(--ink); pointer-events: none; opacity: 0; }
 #pop.show { animation: pop 1.1s ease-out both; }
 @keyframes pop { 0% { opacity: 0; transform: scale(0.6) rotate(-4deg); } 15% { opacity: 1; transform: scale(1.08) rotate(-4deg); } 70% { opacity: 1; transform: scale(1) rotate(-4deg); } 100% { opacity: 0; transform: translateY(-24px) rotate(-4deg); } }
@@ -141,13 +148,14 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   #hud { top: 8px; }
   #flight { top: 40px; }
   #dist { font-size: 30px; }
+  .helmets img { height: 30px; }
   #deals { top: 40px; gap: 3px; }
   #deals .chip { font-size: 13px; padding: 1px 6px; }
   .deals { font-size: 14px; }
   .deals small { font-size: 12px; }
   #touch button { width: 60px; height: 60px; }
 }
-@media (prefers-reduced-motion: reduce) { #pop.show { animation: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #pop.show { animation: none; opacity: 1; } .helmets.fresh img:not(.off) { animation: none; } }
 </style>
 
 <div id="game">
@@ -177,12 +185,13 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       <div class="body">
         <div class="eyebrow" id="t-eyebrow">Twin Falls, Idaho · 1,600 feet rim to rim</div>
         <h1>Snake River Jump</h1>
-        <p id="t-blurb">One scooter, one spring launcher and a canyon you will not clear on the first try. Land it on your wheels on the far side to finish. Every jump pays by the foot. Flips pay extra, but only if he ends the jump the right way up. Sponsors pay for stunts, and the money buys a better scooter.</p>
+        <p id="t-blurb">One scooter, one enormous spring, and a canyon with no intention of letting you across on the first try. Every foot pays. Flips pay extra, but only if you finish wheels down. Sponsors pay for stunts. Blow it all on a better scooter, then stick the landing on the far side.</p>
         <dl class="keys">
-          <dt>Launch</dt><dd id="k-launch"><kbd>Space</kbd> or tap when the needle is in the green</dd>
-          <dt>Lean</dt><dd id="k-lean"><kbd>←</kbd> back, <kbd>→</kbd> forward. A full spin is a flip.</dd>
-          <dt>Boost</dt><dd id="k-boost">Hold <kbd>Space</kbd> in the air, once you own a rocket</dd>
+          <dt>Launch</dt><dd id="k-launch"><kbd>Space</kbd> or tap when the needle hits the green</dd>
+          <dt>Lean</dt><dd id="k-lean"><kbd>←</kbd> back, <kbd>→</kbd> forward. Go all the way round for a flip.</dd>
+          <dt>Boost</dt><dd id="k-boost">Hold <kbd>Space</kbd> in the air, once you can afford a rocket</dd>
         </dl>
+        <div class="helmets" id="t-helmets" hidden></div>
         <div class="row"><button class="big" id="start">Start jumping</button><span id="resume" hidden></span></div>
       </div>
     </div>
@@ -193,7 +202,8 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       <div class="stripe" id="stripe2"></div>
       <div class="body">
         <div class="eyebrow" id="s-eyebrow">Jump 1</div>
-        <h2 id="s-head">Into the canyon</h2>
+        <h2 id="s-head">Splashdown</h2>
+        <div class="helmets" id="s-helmets" hidden></div>
         <div class="pay" id="s-pay"></div>
         <p id="s-note" hidden></p>
         <div><div class="eyebrow">Sponsors want</div><div class="deals" id="s-deals"></div></div>
@@ -251,7 +261,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     else { const fx = W.FAR - 270; strips = [['bg6c', fx], ['bg1', 0], ['bg7', fx + 1236], ['bg8', fx + 1236 + 4096]]; REP_X = fx + 1236 + 4096 + 3079; }
     $('t-eyebrow').textContent = L.place + ' · ' + L.gapFt.toLocaleString('en-US') + ' feet rim to rim';
     if (!blurb0) blurb0 = $('t-blurb').textContent;
-    $('t-blurb').textContent = save.lvl === 0 ? blurb0 : L.name + ' is wider, and the scooter has been swapped for a ' + L.vehicleName + ' you can fit with wings. Wings make it nose-heavy: lean back to hold the nose a little above your path and it glides, lean back too far and it stalls. Land it on your wheels to finish. Flips still only pay if he ends the right way up.';
+    $('t-blurb').textContent = save.lvl === 0 ? blurb0 : L.name + ' is a lot wider, so naturally you have traded the scooter for a ' + L.vehicleName + '. Bolt wings on it and it flies, more or less. It is nose-heavy: hold the nose a little above your path and it glides, haul back too far and it stalls like, well, a ' + L.vehicleName + '. Wheels down on the far side to finish. Flips still only pay if you end up the right way up.';
     const tr = $('track'); for (const z of [...tr.querySelectorAll('b')]) z.remove();
     for (const z of W.ZONES) { const el = document.createElement('b'); el.className = z.up > 0 ? 'rise' : 'sink'; /* not 'up': that is the shop card's class */ el.style.left = (z.x0 - W.NEAR) / W.GAP * 100 + '%'; el.style.width = (z.x1 - z.x0) / W.GAP * 100 + '%'; tr.prepend(el); }
   }
@@ -377,7 +387,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     snd.init(); snd.stopFall();
     state = 'aim'; run = null; roll = null; sink = null; parts = []; fx = []; doll = null; runT = 0; shake = 0; meter = 0; meterDir = 1; lastFlips = 0;
     $('title').hidden = true; $('shop').hidden = true; $('flight').hidden = true; $('touch').hidden = true;
-    setHint(L.wings && save.ljumps < 6 ? (save.up.frame > 0 ? 'Hold the nose a little above your path. Too high and the wings stall.' : 'Buy wings in the shop to glide. ' + (coarse ? 'Tap' : 'Space') + ' to launch in the green.') : coarse ? 'Tap to launch when the needle is in the green' : 'Space or click to launch when the needle is in the green');
+    setHint(L.wings && save.ljumps < 6 ? (save.up.frame > 0 ? 'Nose a little above your path. Too high and the wings quit on you.' : 'It flies better with wings. They are in the shop. ' + (coarse ? 'Tap' : 'Space') + ' to launch in the green.') : coarse ? 'Tap to launch when the needle is in the green' : 'Space or click to launch when the needle is in the green');
     hud(); deals();
   }
   // the two sponsor contracts on offer, as chips under the HUD
@@ -391,7 +401,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     const power = SRJ.meterPower(meter);
     run = SRJ.newRun(save.up, power); state = 'run'; runT = 0; falling = false; stallSaid = false; leanT = 0; lastMeter = meter; bestAtStart = save.best; popped = false; airHint = false;
     snd.twang(power);
-    pop(meter > SRJ.GREEN1 ? 'Over-wound!' : meter >= SRJ.GREEN0 ? 'Sweet spot!' : meter > 0.5 ? 'Decent' : 'Weak spring');
+    pop(meter > SRJ.GREEN1 ? 'Sproing! Too much' : meter >= SRJ.GREEN0 ? 'Sweet spot!' : meter > 0.5 ? 'Not bad' : 'Limp spring');
     for (let i = 0; i < 14; i++) dust(W.START - 110, 10 + Math.random() * 40, -200 - Math.random() * 300, 60 + Math.random() * 160);
     $('flight').hidden = false; $('flips').hidden = true; $('flips').className = 'chip'; $('alt').hidden = true;
     $('fuel').hidden = !(run.fuel > 0);
@@ -409,8 +419,8 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   }
 
   const HEAD = {
-    canyon: 'Into the river', wall: 'Hit the far wall', near: 'Never left the cliff', stall: 'Stalled on the ramp',
-    landed: 'Stuck the landing', crashland: 'Crashed the landing',
+    canyon: 'Splashdown', wall: 'Met the far wall', near: 'Barely left the cliff', stall: 'Ran out of puff on the ramp',
+    landed: 'Nailed it', crashland: 'So close. Faceplant.',
   };
   function endRun() {
     const s = run;
@@ -441,15 +451,15 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
         if (s.flips) pop(s.flips === 1 ? 'Clean! Flip banked' : 'Clean! ' + s.flips + ' flips banked');
       } else { // anything else is a belly flop: he is thrown off and the flips are lost
         scatter(s); after = 1.9; snd.splash(true); shake = 14;
-        pop(s.flips ? 'Belly flop! Flips lost' : 'Belly flop!');
+        pop(s.flips ? 'Belly flop! Flips lost' : 'Belly flop! Oof');
       }
     } else if (s.outcome === 'stall') {
       after = 0.9; snd.sad();
     } else {
       scatter(s); snd.stopFall(); snd.thud(true); shake = 16;
       for (let i = 0; i < 16; i++) dust(s.x, s.y - 40, (Math.random() - 0.5) * 500, Math.random() * 300);
-      if (s.outcome === 'crashland') { after = 1.8; pop('Wheels down!'); }
-      else if (s.outcome === 'wall') pop('So close');
+      if (s.outcome === 'crashland') { after = 1.8; pop('Wheels down next time!'); }
+      else if (s.outcome === 'wall') pop('Ouch. So close');
     }
   }
   // Rider joints in rider.png pixels: head, neck, hip, foot. The drawn pieces hang off the sticks between them.
@@ -521,14 +531,14 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       SRJ.step(run, input, DT);
       if (run.mode === 'air') { if (input.tilt) leanT += DT; if (!airHint) showAirHint(); }
       // passing the balloon that marks the best jump, still above the rim, pops it
-      if (!popped && bestAtStart > 0 && run.mode === 'air' && !run.rimDone && run.x > W.NEAR + bestAtStart * W.PXFT) { popped = true; confetti(W.NEAR + bestAtStart * W.PXFT, 150); snd.popb(); pop('New best!'); }
+      if (!popped && bestAtStart > 0 && run.mode === 'air' && !run.rimDone && run.x > W.NEAR + bestAtStart * W.PXFT) { popped = true; confetti(W.NEAR + bestAtStart * W.PXFT, 150); snd.popb(); pop('Pop! New best'); }
       const v = run.mode === 'ground' ? run.v : Math.hypot(run.vx, run.vy);
       spin += v * DT / 40;
       if (run.boosting && Math.random() < 0.6) flame(run);
       if (run.mode === 'ground' && Math.random() < 0.08) dust(run.x - 110, run.y - W.COM_H + 6, -80, 40 + Math.random() * 60);
       if (run.rimDone && !falling && run.x < W.FAR - 900) { falling = true; snd.fall(); }
       if (falling && !run.rimDone) { falling = false; snd.stopFall(); } // rising air carried him back up
-      if (run.stall && !stallSaid && run.mode === 'air' && !run.rimDone) { stallSaid = true; pop('Stall! Nose down'); }
+      if (run.stall && !stallSaid && run.mode === 'air' && !run.rimDone) { stallSaid = true; pop('Stall! Nose down!'); }
       if (run.flips > lastFlips) { lastFlips = run.flips; snd.flip(run.flips); pop(['', 'Flip!', 'Double flip!', 'Triple flip!'][run.flips] || run.flips + ' flips!'); }
       if (run.done) endRun();
     } else if (state === 'after') {
@@ -1000,11 +1010,11 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     state = 'shop'; const r = result;
     $('flight').hidden = true; $('deals').hidden = true;
     $('s-eyebrow').textContent = 'Jump ' + r.jump + ' · ' + r.dist.toLocaleString('en-US') + ' ft';
-    $('s-head').textContent = r.record ? 'You cleared ' + L.name + ' in ' + r.jump + ' jumps' : r.outcome === 'canyon' && !r.clean ? 'Belly flop' : r.outcome === 'canyon' && r.flips ? 'Clean splash' : HEAD[r.outcome];
+    $('s-head').textContent = r.record ? L.name + ', cleared in ' + r.jump + (r.jump === 1 ? ' jump!' : ' jumps!') : r.outcome === 'canyon' && !r.clean ? 'Belly flop' : r.outcome === 'canyon' && r.flips ? 'Clean splash' : HEAD[r.outcome];
     const rows = [['Distance, ' + r.dist.toLocaleString('en-US') + ' ft', r.pay.base]];
     const fl = r.flips === 1 ? '1 flip' : r.flips + ' flips';
     if (r.flips && r.clean) rows.push([fl + ', landed upright, +' + Math.round(SRJ.flipBonus(r.flips) * 100) + '%', r.pay.trick]);
-    else if (r.flips) rows.push([fl + ', not landed upright', Math.round(r.pay.base * SRJ.flipBonus(r.flips)), true]);
+    else if (r.flips) rows.push([fl + ', lost in the flop', Math.round(r.pay.base * SRJ.flipBonus(r.flips)), true]);
     if (r.pay.pb) rows.push(['New best, ' + r.gain.toLocaleString('en-US') + ' ft further', r.pay.pb]);
     const pay = $('s-pay'); pay.textContent = '';
     for (const c of r.paid) rows.push(['★ Sponsor: ' + SRJ.contractText(c), c.pay]);
@@ -1015,16 +1025,18 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     const nextL = SRJ.LEVELS[save.lvl + 1], canGo = !!nextL && save.cleared > save.lvl;
     const maxed = ORDER.every(k => save.up[k] >= MAX_LVL) && !r.crossed && r.outcome !== 'crashland';
     // one line of coaching, picked from what just happened
-    const tip = r.crossed || r.outcome === 'crashland' ? '' : maxed ? 'Everything is maxed, so the rest is flying. Hold boost from take-off with the nose well up, then keep the nose a little above your path and glide. Spinning costs distance.'
-      : r.over ? 'Over-wound. Stopping the needle in the red costs more than a third of the launch: stop it in the green.'
-      : r.flips && !r.clean ? 'Flips only pay if he ends the jump wheels down. Stop spinning a little earlier and level out before the water.'
-      : r.idleRocket ? 'You own a rocket. Hold ' + (coarse ? 'BOOST' : 'Space') + ' in the air to burn it.'
-      : !r.leaned && save.ljumps <= 12 ? 'Try leaning back after take-off. Holding the nose a little above your path makes it glide much further.' : '';
-    const md = r.record ? SRJ.medal(save.lvl, r.jump) + ' medal. Par is ' + L.par[0] + ' jumps for gold, ' + L.par[1] + ' for silver. ' : '';
+    const tip = r.crossed || r.outcome === 'crashland' ? '' : maxed ? 'Nothing left to buy, so it is all down to the pilot. Light the rocket off the ramp with the nose way up, then hold the nose just above your path and glide. Spinning burns distance.'
+      : r.over ? 'Over-wound! The red zone eats more than a third of your launch. Stop the needle in the green.'
+      : r.flips && !r.clean ? 'Flips only pay if you finish wheels down. Quit spinning a touch earlier and level out before the water.'
+      : r.idleRocket ? 'You paid good money for that rocket. Hold ' + (coarse ? 'BOOST' : 'Space') + ' in the air and get your money\'s worth.'
+      : !r.leaned && save.ljumps <= 12 ? 'Try leaning back after take-off. Keep the nose a little above your path and this thing actually glides.' : '';
+    const hn = r.record ? SRJ.helmets(save.lvl, r.jump) : 0;
+    const md = !hn ? '' : hn === 3 ? 'Three helmets. That is as good as it gets. ' : (hn === 2 ? 'Two helmets. ' : 'One helmet. ') + 'Cross in ' + (hn === 2 ? L.par[0] : L.par[1]) + ' jumps or fewer for ' + (hn === 2 ? 'all three. ' : 'two. ');
+    helmets($('s-helmets'), hn, true);
     $('s-note').hidden = !(r.first || r.record || r.outcome === 'crashland' || tip);
     $('s-note').textContent = tip ? tip
-      : r.outcome === 'crashland' ? 'You reached the far side, but it only counts if you land on your wheels.'
-      : md + (!r.first ? '' : (r.cape ? 'You earned the cape. He wears it on every jump from now on. ' : '') + (nextL ? nextL.name + ' is next: ' + nextL.gapFt.toLocaleString('en-US') + ' feet, on a ' + nextL.vehicleName + '. Your savings go on the ' + nextL.vehicleName + ', so you start there with $0.' : 'That is every canyon built so far.'));
+      : r.outcome === 'crashland' ? 'You made the far side, then ate it. It only counts if you land on your wheels.'
+      : md + (!r.first ? '' : (r.cape ? 'You earned the cape, and he is never taking it off. ' : '') + (nextL ? 'Next up: ' + nextL.name + ', ' + nextL.gapFt.toLocaleString('en-US') + ' feet, on a ' + nextL.vehicleName + '. Your savings go on the ' + nextL.vehicleName + ', so you start over at $0.' : 'That is every canyon we have built. For now.'));
     $('retry').hidden = !(save.cleared > save.lvl); retryArmed = false; $('retry').textContent = 'Retry this canyon';
     $('next').hidden = !canGo; if (canGo) $('next').textContent = 'On to ' + nextL.name;
     $('again').className = canGo ? 'quiet' : 'big';
@@ -1057,14 +1069,20 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       box.appendChild(el);
     }
   }
+  // Rating for a crossing: three of Kevin's helmets, the earned ones in colour.
+  function helmets(el, n, fresh) {
+    el.textContent = ''; el.hidden = !n; if (!n) return;
+    el.className = 'helmets' + (fresh ? ' fresh' : ''); el.setAttribute('role', 'img'); el.setAttribute('aria-label', n + ' of 3 helmets');
+    for (let i = 0; i < 3; i++) { const im = document.createElement('img'); im.src = ART.helmet; im.alt = ''; if (i >= n) im.className = 'off'; el.appendChild(im); }
+  }
   let retryArmed = false;
   $('retry').onclick = () => { // run the same canyon again from nothing, to beat the medal
-    if (!retryArmed) { retryArmed = true; $('retry').textContent = 'Back to $0 and no upgrades?'; return; }
+    if (!retryArmed) { retryArmed = true; $('retry').textContent = 'Really? Back to $0?'; return; }
     goLevel(save.lvl);
   };
   let resetArmed = false;
   $('reset').onclick = () => {
-    if (!resetArmed) { resetArmed = true; $('reset').textContent = 'Erase everything?'; return; }
+    if (!resetArmed) { resetArmed = true; $('reset').textContent = 'Really erase everything?'; return; }
     save = fresh(); store(); applyLevel(); toAim();
   };
   function syncMute() { const b = $('mute'); b.setAttribute('aria-pressed', snd.muted ? 'true' : 'false'); b.setAttribute('aria-label', snd.muted ? 'Sound off' : 'Sound on'); }
@@ -1145,7 +1163,8 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       $('k-boost').textContent = 'Hold BOOST in the air, once you own a rocket';
     }
     buildWalls(); buildMower(); applyLevel();
-    const m = save.medal[L.id]; if (m) { $('resume').hidden = false; $('resume').textContent = (save.jumps ? $('resume').textContent + ' · ' : '') + SRJ.medal(save.lvl, m) + ' medal, ' + m + ' jumps'; }
+    const m = save.medal[L.id]; helmets($('t-helmets'), m ? SRJ.helmets(save.lvl, m) : 0);
+    if (m) { const sp = document.createElement('span'); sp.textContent = 'Best crossing: ' + m + ' jumps'; $('t-helmets').appendChild(sp); }
     hud(); camera(0, true);
     ready.then(() => { if (save.lvl > 0) buildTints(); resize(); camera(0, true); requestAnimationFrame(frame); });
   }

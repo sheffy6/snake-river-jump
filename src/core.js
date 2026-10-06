@@ -42,22 +42,22 @@ const SRJ = (() => {
   // ---- Upgrades -------------------------------------------------------
   const UPGRADES = {
     launcher: {
-      name: 'Launcher spring', blurb: 'Leaves the launcher faster',
+      name: 'Launcher spring', blurb: 'A bigger boing off the line',
       vals: [1000, 1160, 1336, 1528, 1736, 1960], unit: v => Math.round(v / W.PXFT * 0.68) + ' mph',
       base: 160, growth: 2.4,
     },
     engine: {
-      name: 'Engine', blurb: 'Builds speed on the run-up',
+      name: 'Engine', blurb: 'More shove on the run-up',
       vals: [96, 176, 264, 360, 464, 576], unit: v => Math.round(v / 16) + ' hp',
       base: 200, growth: 2.4,
     },
     frame: {
-      name: 'Lighter frame', blurb: 'Launches faster, glides further, flips quicker',
+      name: 'Lighter frame', blurb: 'Less scooter to haul: faster, floatier, flippier',
       vals: [1, 0.92, 0.85, 0.78, 0.72, 0.66], unit: v => Math.round(v * W.LB) + ' lb',
       base: 240, growth: 2.4,
     },
     rocket: {
-      name: 'Rocket', blurb: 'Burns in the air while you hold boost',
+      name: 'Rocket', blurb: 'Hold boost in the air and hang on',
       vals: [0, 0.8, 1.4, 2.0, 2.7, 3.5], unit: v => (v ? v.toFixed(1) + ' s of fuel' : 'none'),
       base: 300, growth: 2.4,
     },
@@ -80,7 +80,7 @@ const SRJ = (() => {
     {
       id: 'hells', name: 'Hells Canyon', place: 'Idaho and Oregon', gapFt: 2800, vehicle: 'mower', vehicleName: 'lawnmower', rate: 2, lb: 520,
       mass: 0.9,   // fixed: on the mower the third upgrade is wings, not weight
-      wings: { name: 'Wings', blurb: 'More lift. Hold the nose up to glide; too far and it stalls' },
+      wings: { name: 'Wings', blurb: 'Lawnmowers can fly. Nose up to glide, too far up and it stalls' },
       vals: { launcher: [1500, 1660, 1820, 1990, 2170, 2360], engine: [300, 390, 490, 600, 720, 850], frame: [1, 1.5, 2, 2.5, 3, 3.5], rocket: [1.0, 1.5, 2.0, 2.6, 3.2, 3.8] },
       base: { launcher: 800, engine: 1000, frame: 1200, rocket: 1500 }, zones: [], par: [26, 33],
     },
@@ -272,14 +272,15 @@ const SRJ = (() => {
     switch (c.type) {
       case 'dist': return c.t >= W.GAP_FT ? 'Reach the far side' : 'Jump past ' + ft(c.t);
       case 'alt': return 'Climb ' + ft(c.t) + ' above the rim';
-      case 'air': return 'Stay in the air ' + c.t.toFixed(1) + ' s';
-      case 'dry': return ft(c.t) + ' without the rocket';
+      case 'air': return 'Hang in the air ' + c.t.toFixed(1) + ' s';
+      case 'dry': return ft(c.t) + ', no rocket';
       case 'flips': return fl(c.t) + ', landed upright';
       case 'farflip': return fl(c.n) + ' landed upright past ' + ft(c.t);
     }
     return '';
   }
   const medal = (lvl, jumps) => { const p = LEVELS[lvl].par; return jumps <= p[0] ? 'Gold' : jumps <= p[1] ? 'Silver' : 'Bronze'; };
+  const helmets = (lvl, jumps) => { const p = LEVELS[lvl].par; return jumps <= p[0] ? 3 : jumps <= p[1] ? 2 : 1; }; // the rating for a crossing: three helmets is the best
   const newStats = () => ({ best: 0, alt: 0, air: 0, dry: 0, fl: 0 });
   const newContracts = (st, up) => ({ n: [0, 0], list: [makeContract(0, 0, st, up), makeContract(1, 0, st, up)] });
   // After a run: pay the contracts it met, retire the ones that have been on offer too long, update the records, deal replacements.
@@ -298,6 +299,6 @@ const SRJ = (() => {
     if (s.clean) st.fl = Math.max(st.fl, s.flips);
   }
 
-  return { medal, flipBonus, newStats, newContracts, settleContracts, makeContract, contractMet, contractText, record, altFt, CON_LIFE, W, LEVELS, setLevel, get level() { return level; }, UPGRADES, ORDER, MAX_LVL, cost, val, GREEN0, GREEN1, meterPower, newRun, step, terrain, rampH, slope, payout, T };
+  return { medal, helmets, flipBonus, newStats, newContracts, settleContracts, makeContract, contractMet, contractText, record, altFt, CON_LIFE, W, LEVELS, setLevel, get level() { return level; }, UPGRADES, ORDER, MAX_LVL, cost, val, GREEN0, GREEN1, meterPower, newRun, step, terrain, rampH, slope, payout, T };
 })();
 if (typeof module !== 'undefined') module.exports = SRJ;

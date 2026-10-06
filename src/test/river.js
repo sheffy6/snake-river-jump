@@ -26,7 +26,7 @@ const OUT = process.env.SHOTS || require('os').tmpdir();
     const clean = await jump({ boost: true }, '2clean');
     await p.click('#again'); await p.waitForTimeout(200);
     const flop = await jump({ back: true, boost: true }, '3flop');
-    ok = ok && /river|splash/i.test(clean.head) && flop.head === 'Belly flop' && /not landed upright/.test(flop.pay);
+    ok = ok && /river|splash/i.test(clean.head) && flop.head === 'Belly flop' && /lost in the flop/.test(flop.pay);
     await p.close();
   }
   console.log(ok ? 'PASS' : 'FAIL', '| errors:', errs.length ? errs : 'none'); await b.close();
