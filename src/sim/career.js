@@ -41,8 +41,11 @@ const PILOTS = {
 const METER = { perfect: () => 1, human: r => { const u = r(); return u < 0.6 ? 1 : u < 0.85 ? 0.8 + r() * 0.12 : 0.62; }, random: r => S.meterPower(r()) };
 function fly(up, power, pilot, goFar, stop) {
   if (pilot === 'showoff') pilot = 'flipper'; else stop = 0; // showoff: a flipper who misjudges when to stop spinning
-  const s = S.newRun(up, power), m = { goFar, stop }; let n = 0;
-  while (!s.done && n++ < 120 * 60) S.step(s, s.mode === 'air' ? PILOTS[pilot](s, m) : { tilt: 0, boost: false }, DT);
+  const s = S.newRun(up, power), m = { goFar, stop }, tank = s.fuel; let n = 0;
+  // the roadster: spend part of the tank on the ramp (an expert spends less as the build grows), then aim the belly jets forward
+  const avg = S.ORDER.reduce((t, k) => t + up[k], 0) / 4, g = pilot === 'none' ? 0 : pilot === 'flipper' && !stop ? (avg < 1.5 ? 1 : avg < 3.5 ? 0.6 : 0.3) : 0.5;
+  const air = s => s.car && s.fuel > 0.02 && pilot !== 'none' && pilot !== 'spinner' ? { tilt: pd(Math.atan2(s.vy, s.vx) - 0.6, s), boost: true } : PILOTS[pilot](s, m);
+  while (!s.done && n++ < 120 * 60) S.step(s, s.mode === 'air' ? air(s) : { tilt: 0, boost: s.car && s.fuel > tank * (1 - g) }, DT);
   return s;
 }
 function career(pilot, meter, seed, lvl, cap = 150) {

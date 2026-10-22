@@ -285,14 +285,15 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     else { const fx = W.FAR - 270; strips = [['bg6c', fx], ['bg1', 0], ['bg7', fx + 1236], ['bg8', fx + 1236 + 4096]]; REP_X = fx + 1236 + 4096 + 3079; }
     $('t-eyebrow').textContent = L.place + ' · ' + L.gapFt.toLocaleString('en-US') + ' feet rim to rim';
     if (!blurb0) blurb0 = $('t-blurb').textContent;
-    $('t-blurb').textContent = save.lvl === 0 ? blurb0 : L.name + ' is a lot wider, so naturally you have traded the scooter for a ' + L.vehicleName + '. Bolt wings on it and it flies, more or less. It is nose-heavy: hold the nose a little above your path and it glides, haul back too far and it stalls like, well, a ' + L.vehicleName + '. Wheels down on the far side to finish. Flips still only pay if you end up the right way up.';
+    $('t-blurb').textContent = save.lvl === 0 ? blurb0 : L.car ? 'The ' + L.name + '. No scooter or lawnmower is getting across this one, so you are driving a flying roadster: one tank of compressed air, jets out the back and jets underneath. Hold boost on the ramp to blast up it faster, or save the air for the belly jets, which push out of the floor so leaning aims them. Same tank either way, so spend it wisely. Stabilizers roll you back upright when you let go of lean. Wheels down on the far side to finish.' : L.name + ' is a lot wider, so naturally you have traded the scooter for a ' + L.vehicleName + '. Bolt wings on it and it flies, more or less. It is nose-heavy: hold the nose a little above your path and it glides, haul back too far and it stalls like, well, a ' + L.vehicleName + '. Wheels down on the far side to finish. Flips still only pay if you end up the right way up.';
     const tr = $('track'); for (const z of [...tr.querySelectorAll('b')]) z.remove();
     for (const z of W.ZONES) { const el = document.createElement('b'); el.className = z.up > 0 ? 'rise' : 'sink'; /* not 'up': that is the shop card's class */ el.style.left = (z.x0 - W.NEAR) / W.GAP * 100 + '%'; el.style.width = (z.x1 - z.x0) / W.GAP * 100 + '%'; tr.prepend(el); }
   }
   // Evening light for the later canyons: the same rock with a warm wash over it.
   function buildTints() {
-    if (tinted) return; tinted = {};
-    const wash = im => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(178,104,52,0.26)'; g.fillRect(0, 0, c.width, c.height); return c; };
+    if (tinted && tinted.lvl === save.lvl) return; tinted = { lvl: save.lvl };
+    const tint = save.lvl >= 2 ? 'rgba(196,74,36,0.34)' : 'rgba(178,104,52,0.26)'; // Hells Canyon in evening light, the Grand Canyon in red rock
+    const wash = im => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d'); g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = tint; g.fillRect(0, 0, c.width, c.height); return c; };
     for (const k of ['bg1', 'bg6c', 'bg7', 'bg8', ...reps]) if (img[k] && img[k].width) tinted[k] = wash(img[k]);
     if (walls) tinted.walls = walls.map(wash);
   }
@@ -301,6 +302,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   const VEH = {
     scooter: [['bwheel', -98, 53, true], ['fwheel', 97.5, 57.5, true], ['bike', -12, 0.5, false]],
     mower: [['mwB', -94, 51, true], ['mwF', 93, 68, true], ['mower', -10, 15, false]],
+    car: [['cwB', -97, 59, true], ['cwF', 97, 59, true], ['car', 0, 0, false], ['carDoor', 0, 0, false, true]], // the last one is drawn in front of the rider
   };
   const veh = () => VEH[L.vehicle];
   // sprite pieces: centre offset from the centre of mass (sprite pixels, y down)
@@ -409,7 +411,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     snd.init(); snd.stopFall();
     state = 'aim'; run = null; roll = null; sink = null; parts = []; fx = []; doll = null; runT = 0; shake = 0; meter = 0; meterDir = 1; lastFlips = 0;
     $('title').hidden = true; $('shop').hidden = true; $('flight').hidden = true; $('touch').hidden = true;
-    setHint(L.wings && save.ljumps < 6 ? (save.up.frame > 0 ? 'Nose a little above your path. Too high and the wings quit on you.' : 'It flies better with wings. They are in the shop. ' + (coarse ? 'Tap' : 'Space') + ' to launch in the green.') : coarse ? 'Tap to launch when the needle is in the green' : 'Space or click to launch when the needle is in the green');
+    setHint(L.car && save.ljumps < 6 ? 'Hold ' + (coarse ? 'BOOST' : 'Space') + ' on the ramp for the rear jets, or save the air for the belly jets. One tank.' : L.wings && save.ljumps < 6 ? (save.up.frame > 0 ? 'Nose a little above your path. Too high and the wings quit on you.' : 'It flies better with wings. They are in the shop. ' + (coarse ? 'Tap' : 'Space') + ' to launch in the green.') : coarse ? 'Tap to launch when the needle is in the green' : 'Space or click to launch when the needle is in the green');
     hud(); deals(); $('deals').hidden = true;
     dealRows($('b-deals')); $('brief').hidden = false;
     if (!save.seenCon) { state = 'intro'; dealRows($('i-deals')); $('intro').hidden = false; $('brief').hidden = true; setHintKeep(); $('gotit').focus({ preventScroll: true }); }
@@ -438,14 +440,14 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     $('brief').hidden = true; $('deals').hidden = false;
     $('flight').hidden = false; $('flips').hidden = true; $('flips').className = 'chip'; $('alt').hidden = true;
     $('fuel').hidden = !(run.fuel > 0);
-    $('touch').hidden = !coarse; $('tb-boost').hidden = !(run.fuel > 0);
-    setHint('');
+    $('touch').hidden = !coarse; $('tb-boost').hidden = !(run.fuel > 0); $('tb-boost').textContent = run.car ? 'JETS' : 'BOOST';
+    setHint(run.car && !coarse ? 'Holding Space now fires the rear jets' : '');
   }
   let airHint = false;
   function showAirHint() { // only once he is off the ramp, where leaning does something
     airHint = true;
     if (coarse) { if (save.jumps < 4) setHint(run.fuel > 0 ? '↺ lean back · ↻ lean forward · hold BOOST' : '↺ lean back · ↻ lean forward'); }
-    else setHint(run.fuel > 0 ? '← lean back · → lean forward · hold Space to boost' : '← lean back · → lean forward');
+    else setHint(run.car ? '← lean back · → lean forward · Space fires the belly jets' : run.fuel > 0 ? '← lean back · → lean forward · hold Space to boost' : '← lean back · → lean forward');
   }
   function skipAfter() { if (state === 'after' && afterT > 0.5) after = 0; }
   function press() {
@@ -555,6 +557,13 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   function confetti(x, y) { for (let i = 0; i < 9; i++) fx.push({ t: 'bit', x, y, vx: (Math.random() - 0.5) * 500, vy: Math.random() * 400, life: 0, max: 0.7 + Math.random() * 0.4, r: 9 + Math.random() * 6, rot: Math.random() * 6 }); }
   function flame(s) {
     const c = Math.cos(s.a), sn = Math.sin(s.a);
+    if (s.car) { // compressed air: white puffs, from the tail on the ramp and from the belly in the air
+      const ground = s.mode === 'ground', [lx, ly] = ground ? [-226, Math.random() < 0.5 ? 22 : 44] : [Math.random() < 0.5 ? -30 : 30, 72];
+      const px = s.x + lx * c + ly * sn, py = s.y + lx * sn - ly * c, dx = ground ? -c : sn, dy = ground ? -sn : -c;
+      const vx0 = ground ? s.v * Math.cos(s.a) : s.vx, vy0 = ground ? s.v * Math.sin(s.a) : s.vy;
+      fx.push({ t: 'gas', x: px, y: py, vx: vx0 * 0.6 + dx * 900 + (Math.random() - 0.5) * 220, vy: vy0 * 0.6 + dy * 900 + (Math.random() - 0.5) * 220, life: 0, max: 0.35 + Math.random() * 0.25, r: 14 + Math.random() * 12 });
+      return;
+    }
     const bx = s.x - 150 * c, by = s.y - 150 * sn;
     fx.push({ t: 'flame', x: bx, y: by, vx: s.vx - 700 * c + (Math.random() - 0.5) * 160, vy: s.vy - 700 * sn + (Math.random() - 0.5) * 160, life: 0, max: 0.22 + Math.random() * 0.15, r: 18 + Math.random() * 14 });
   }
@@ -574,7 +583,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       if (!popped && bestAtStart > 0 && run.mode === 'air' && !run.rimDone && run.x > W.NEAR + bestAtStart * W.PXFT) { popped = true; confetti(W.NEAR + bestAtStart * W.PXFT, 150); snd.popb(); pop('Pop! New best'); }
       const v = run.mode === 'ground' ? run.v : Math.hypot(run.vx, run.vy);
       spin += v * DT / 40;
-      if (run.boosting && Math.random() < 0.6) flame(run);
+      if (run.boosting && Math.random() < (run.car ? 0.8 : 0.6)) flame(run);
       if (run.mode === 'ground' && Math.random() < 0.08) dust(run.x - 110, run.y - W.COM_H + 6, -80, 40 + Math.random() * 60);
       if (run.rimDone && !falling && run.x < W.FAR - 900) { falling = true; snd.fall(); }
       if (falling && !run.rimDone) { falling = false; snd.stopFall(); } // rising air carried him back up
@@ -607,7 +616,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     }
     for (const p of fx) {
       p.life += DT; p.x += p.vx * DT; p.y += p.vy * DT;
-      if (p.t === 'star' || p.t === 'drop' || p.t === 'bit') p.vy -= 900 * DT; else if (p.t === 'dust') { p.vx *= 0.985; p.vy *= 0.985; }
+      if (p.t === 'star' || p.t === 'drop' || p.t === 'bit') p.vy -= 900 * DT; else if (p.t === 'gas') { p.vx *= 0.94; p.vy *= 0.94; } else if (p.t === 'dust') { p.vx *= 0.985; p.vy *= 0.985; }
     }
     if (fx.length && fx[0].life > fx[0].max) fx = fx.filter(p => p.life < p.max);
   }
@@ -728,14 +737,15 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   }
   function drawBike(x, y, a) {
     ctx.save(); ctx.translate(x, -y); ctx.rotate(-a);
-    for (const [k, lx, ly, wheel] of veh()) {
-      const im = img[k]; if (!im || !im.width) continue;
+    for (const [k, lx, ly, wheel, front] of veh()) {
+      const im = img[k]; if (!im || !im.width || front) continue;
       if (wheel) { ctx.save(); ctx.translate(lx, ly); ctx.rotate(spin); ctx.drawImage(im, -im.width / 2, -im.height / 2); ctx.restore(); }
       else ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2);
     }
     if (L.wings && save.up.frame > 0) drawWing(save.up.frame);
     if (hasCape()) drawCape(CAPE_AT[0], CAPE_AT[1], -Math.sin(a), Math.cos(a), capeWind.lx, capeWind.ly, capeWind.sp, performance.now() / 1000);
     { const im = img.rider, [lx, ly] = PARTS.rider; ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2); }
+    for (const [k, lx, ly, , front] of veh()) { const im = img[k]; if (front && im && im.width) ctx.drawImage(im, lx - im.width / 2, ly - im.height / 2); }
     ctx.restore();
   }
   // Stand-in wing: an aerofoil on struts over the rider and a tail fin, both growing with the wing level.
@@ -800,6 +810,52 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     };
     img.mwB = wheel(44, 16); img.mwF = wheel(27, 12);
   }
+  // Stand-in flying roadster, drawn round the same rider pose: low open body, seat under him, wheel at his hands,
+  // jet nozzles at the tail and under the floor. The door is a separate piece drawn in front of his legs.
+  function buildCar() {
+    const mk = () => { const c = document.createElement('canvas'); c.width = 440; c.height = 220; const g = c.getContext('2d'); g.lineJoin = 'round'; g.lineCap = 'round'; g.translate(220, 110); return [c, g]; };
+    const TEAL = '#2a8c9a', TEAL_D = '#1b5d67', TEAL_L = '#6cc6d1', INK = '#26262b', STEEL = '#9a9ca4', STEEL_D = '#55565c', GLASS = 'rgba(190,226,236,0.55)';
+    const body = g => { // side profile, wheel arches cut out
+      g.beginPath(); g.moveTo(206, 40); g.lineTo(200, 58); g.lineTo(143, 58); g.arc(97, 59, 45, 0, Math.PI, true); g.lineTo(-52, 60); g.arc(-97, 59, 45, 0, Math.PI, true);
+      g.lineTo(-202, 58); g.lineTo(-208, 18); g.quadraticCurveTo(-200, 0, -175, -2); g.lineTo(-128, -6); g.quadraticCurveTo(-116, -8, -112, -6); g.lineTo(52, -6);
+      g.quadraticCurveTo(70, 4, 120, 12); g.quadraticCurveTo(190, 22, 206, 40); g.closePath();
+    };
+    const [c, g] = mk();
+    // jet nozzles: two out of the tail, two under the floor
+    for (const y of [22, 44]) { g.beginPath(); g.moveTo(-204, y - 9); g.lineTo(-226, y - 13); g.lineTo(-226, y + 13); g.lineTo(-204, y + 9); g.closePath(); g.fillStyle = STEEL; g.fill(); g.strokeStyle = STEEL_D; g.lineWidth = 3; g.stroke(); }
+    for (const x of [-30, 30]) { g.beginPath(); g.moveTo(x - 10, 58); g.lineTo(x - 14, 72); g.lineTo(x + 14, 72); g.lineTo(x + 10, 58); g.closePath(); g.fillStyle = STEEL; g.fill(); g.strokeStyle = STEEL_D; g.lineWidth = 3; g.stroke(); }
+    // seat back and steering wheel, behind him
+    g.beginPath(); g.moveTo(-126, -6); g.lineTo(-118, -58); g.quadraticCurveTo(-112, -66, -102, -58); g.lineTo(-98, -6); g.closePath(); g.fillStyle = INK; g.fill();
+    g.beginPath(); g.moveTo(66, 0); g.lineTo(54, -40); g.strokeStyle = INK; g.lineWidth = 6; g.stroke();
+    g.save(); g.translate(52, -46); g.rotate(0.35); g.beginPath(); g.ellipse(0, 0, 6, 19, 0, 0, 7); g.fillStyle = '#3a3a40'; g.fill(); g.strokeStyle = INK; g.lineWidth = 3; g.stroke(); g.restore();
+    body(g); g.fillStyle = TEAL; g.fill();
+    g.save(); g.clip(); // shading: a darker lower half and a bright crease along the shoulder
+    g.fillStyle = TEAL_D; g.fillRect(-230, 34, 460, 40);
+    g.beginPath(); g.moveTo(-200, 10); g.lineTo(-112, 4); g.lineTo(60, 4); g.quadraticCurveTo(130, 18, 200, 34); g.strokeStyle = TEAL_L; g.lineWidth = 5; g.stroke();
+    g.restore();
+    body(g); g.strokeStyle = INK; g.lineWidth = 4.5; g.stroke();
+    // headlight, tail light, and the windscreen raked back over the dash
+    g.beginPath(); g.ellipse(196, 34, 9, 5, 0.35, 0, 7); g.fillStyle = '#fff6c8'; g.fill(); g.strokeStyle = INK; g.lineWidth = 2.5; g.stroke();
+    g.fillStyle = '#d23a3a'; g.fillRect(-209, 6, 7, 12);
+    g.beginPath(); g.moveTo(66, -4); g.lineTo(98, -54); g.lineTo(108, -52); g.lineTo(84, 2); g.closePath(); g.fillStyle = GLASS; g.fill(); g.strokeStyle = INK; g.lineWidth = 3.5; g.stroke();
+    img.car = c;
+    const [d, h] = mk(); // the door, over his legs
+    h.beginPath(); h.moveTo(-112, -6); h.lineTo(52, -6); h.quadraticCurveTo(66, 2, 70, 14); h.lineTo(58, 56); h.lineTo(-52, 60); h.lineTo(-112, 56); h.closePath();
+    h.fillStyle = TEAL; h.fill(); h.save(); h.clip(); h.fillStyle = TEAL_D; h.fillRect(-120, 34, 200, 40); h.beginPath(); h.moveTo(-112, 4); h.lineTo(62, 4); h.strokeStyle = TEAL_L; h.lineWidth = 5; h.stroke(); h.restore();
+    h.beginPath(); h.moveTo(-112, -6); h.lineTo(52, -6); h.quadraticCurveTo(66, 2, 70, 14); h.strokeStyle = INK; h.lineWidth = 4.5; h.stroke();
+    h.beginPath(); h.moveTo(52, -4); h.lineTo(50, 54); h.moveTo(-108, -4); h.lineTo(-108, 54); h.strokeStyle = 'rgba(38,38,43,0.55)'; h.lineWidth = 2.5; h.stroke();
+    h.fillStyle = INK; h.fillRect(20, 12, 18, 5); // door handle
+    img.carDoor = d;
+    const wheel = r => {
+      const w = document.createElement('canvas'); w.width = w.height = 2 * r + 6; const q = w.getContext('2d'); q.translate(r + 3, r + 3);
+      q.beginPath(); q.arc(0, 0, r, 0, 7); q.fillStyle = '#2b2b2f'; q.fill(); q.strokeStyle = '#18181b'; q.lineWidth = 3; q.stroke();
+      q.beginPath(); q.arc(0, 0, r * 0.62, 0, 7); q.fillStyle = '#c9ccd3'; q.fill(); q.strokeStyle = STEEL_D; q.lineWidth = 2.5; q.stroke();
+      q.strokeStyle = STEEL_D; q.lineWidth = 4; for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; q.beginPath(); q.moveTo(Math.cos(a) * r * 0.14, Math.sin(a) * r * 0.14); q.lineTo(Math.cos(a + 0.3) * r * 0.58, Math.sin(a + 0.3) * r * 0.58); q.stroke(); }
+      q.beginPath(); q.arc(0, 0, r * 0.13, 0, 7); q.fillStyle = TEAL; q.fill();
+      return w;
+    };
+    img.cwB = wheel(36); img.cwF = wheel(36);
+  }
   // One drawn piece laid along the stick between two joints. A and B are that stick's ends in rider.png pixels,
   // (ox, oy) is where the piece sits in rider.png, and the optional crop takes part of an image.
   function limb(im, ox, oy, A, B, pa, pb, sx, sy, sw, sh) {
@@ -830,7 +886,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     const ys = -W.RIVER; if (yBot < ys - 60) return;
     // the body runs in behind both walls; the front sheet stops where the walls begin
     const a = Math.max(x0, front ? 4094 : W.NEAR - 80), b = Math.min(x1, front ? W.FAR : W.FAR + 80); if (a >= b) return;
-    const t = performance.now() / 1000, warm = save.lvl > 0;
+    const t = performance.now() / 1000, warm = save.lvl > 0; // the later canyons have greener, siltier water
     const wave = (x, k) => Math.sin(x / 190 + t * 1.3 + k) * 5 + Math.sin(x / 67 - t * 1.9 + k * 2) * 2.5;
     const top = k => { for (let x = a; x < b; x += 40) g.lineTo(x, ys + wave(x, k)); g.lineTo(b, ys + wave(b, k)); };
     const surface = k => { g.beginPath(); g.moveTo(a, yBot + 60); top(k); g.lineTo(b, yBot + 60); g.closePath(); };
@@ -881,7 +937,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     const g = ctx;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const sky = g.createLinearGradient(0, 0, 0, Hc);
-    if (save.lvl === 0) { sky.addColorStop(0, '#bcd3ee'); sky.addColorStop(0.7, '#dce8f6'); } else { sky.addColorStop(0, '#e8b79a'); sky.addColorStop(0.7, '#fbe6cf'); }
+    if (save.lvl === 0) { sky.addColorStop(0, '#bcd3ee'); sky.addColorStop(0.7, '#dce8f6'); } else if (save.lvl >= 2) { sky.addColorStop(0, '#9fb6dc'); sky.addColorStop(0.55, '#f2c9a4'); sky.addColorStop(0.85, '#f7dcbc'); } else { sky.addColorStop(0, '#e8b79a'); sky.addColorStop(0.7, '#fbe6cf'); }
     g.fillStyle = sky; g.fillRect(0, 0, Wc, Hc);
 
     // clouds drift slower than the canyon, so there is something to fly past when the rim is out of view
@@ -899,11 +955,14 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
     g.imageSmoothingQuality = 'medium';
     if (save.lvl > 0) { // the far side of a deeper canyon: three ranks of ridges fading into the haze
       const yLow = (Hc - gy) / z + 10, step = Math.max(40, 14 / z);
-      for (const [col, top, amp, sc, ph] of [['#d9bfb4', -330, 250, 3100, 1.3], ['#c4a392', -90, 190, 1900, 4.2], ['#a98672', 120, 150, 1150, 0.4]]) {
+      const grand = save.lvl >= 2; // the Grand Canyon's far side is buttes and mesas: flat tops, steep sides
+      const ranks = grand ? [['#e2b39c', -420, 300, 2600, 2.1], ['#cf8c6c', -150, 240, 1700, 5.3], ['#b96a4a', 90, 180, 1000, 0.9]] : [['#d9bfb4', -330, 250, 3100, 1.3], ['#c4a392', -90, 190, 1900, 4.2], ['#a98672', 120, 150, 1150, 0.4]];
+      for (const [col, top, amp, sc, ph] of ranks) {
         g.beginPath(); g.moveTo(x0 - step, yLow);
         for (let x = Math.floor(x0 / step) * step - step; x <= x1 + step; x += step) {
           const n = Math.sin(x / sc + ph) + 0.5 * Math.sin(x / (sc * 0.37) + ph * 2.1) + 0.3 * Math.abs(((x / (sc * 0.16) + ph) % 2 + 2) % 2 - 1) + 0.14 * Math.abs(((x / (sc * 0.047)) % 2 + 2) % 2 - 1);
-          g.lineTo(x, top - amp * n / 1.9);
+          const m = grand ? (n > 0.35 ? 1.25 : n > 0.05 ? 0.35 + (n - 0.05) * 3 : n > -0.3 ? 0.35 : 0) * 1.9 : n;
+          g.lineTo(x, top - amp * m / 1.9);
         }
         g.lineTo(x1 + step, yLow); g.closePath(); g.fillStyle = col; g.fill();
       }
@@ -993,6 +1052,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       g.save(); g.translate(p.x, -p.y);
       if (p.t === 'dust') { g.globalAlpha = 0.38 * (1 - u); g.fillStyle = '#c9c2b2'; g.beginPath(); g.arc(0, 0, p.r * (0.5 + u * 1.6), 0, 7); g.fill(); }
       else if (p.t === 'flame') { g.globalAlpha = 1 - u; g.fillStyle = u < 0.4 ? '#fff1a8' : '#f08a24'; g.beginPath(); g.arc(0, 0, p.r * (1 - u * 0.5), 0, 7); g.fill(); }
+      else if (p.t === 'gas') { g.globalAlpha = 0.75 * (1 - u); g.fillStyle = '#f4f7fa'; g.strokeStyle = 'rgba(120,130,145,0.7)'; g.lineWidth = 2.5; g.beginPath(); g.arc(0, 0, p.r * (0.6 + u * 2.2), 0, 7); g.fill(); g.stroke(); }
       else if (p.t === 'drop') { g.globalAlpha = Math.min(1, 2.5 * (1 - u)); g.fillStyle = '#e9f6fb'; g.strokeStyle = '#3d7791'; g.lineWidth = 2.5; g.beginPath(); g.arc(0, 0, p.r * (1 - u * 0.4), 0, 7); g.fill(); g.stroke(); }
       else if (p.t === 'foam') { g.globalAlpha = 0.8 * (1 - u); g.strokeStyle = '#f4fbfd'; g.lineWidth = 7; g.beginPath(); g.ellipse(0, 4, p.r * (0.5 + u * 2.4), 10 + 12 * u, 0, 0, 7); g.stroke(); }
       else if (p.t === 'bit') { g.rotate(p.rot + p.life * 9); g.globalAlpha = 1 - u; g.fillStyle = '#b8313f'; g.fillRect(-p.r / 2, -p.r / 3, p.r, p.r * 0.66); }
@@ -1206,11 +1266,11 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       $('k-lean').textContent = 'Hold ↺ to lean back, ↻ to lean forward. A full spin is a flip.';
       $('k-boost').textContent = 'Hold BOOST in the air, once you own a rocket';
     }
-    buildWalls(); buildMower(); applyLevel();
+    buildWalls(); buildMower(); buildCar(); applyLevel();
     const m = save.medal[L.id]; helmets($('t-helmets'), m ? SRJ.helmets(save.lvl, m) : 0);
     if (m) { const sp = document.createElement('span'); sp.textContent = 'Best crossing: ' + m + ' jumps'; $('t-helmets').appendChild(sp); }
     hud(); camera(0, true);
-    ready.then(() => { if (save.lvl > 0) buildTints(); resize(); camera(0, true); requestAnimationFrame(frame); });
+    ready.then(() => { if (save.lvl > 0) buildTints(); else tinted = null; resize(); camera(0, true); requestAnimationFrame(frame); });
   }
   const hot = window.claude && window.claude.hot;
   if (hot && hot.snapshot) hot.snapshot(() => save);

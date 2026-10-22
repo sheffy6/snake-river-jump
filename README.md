@@ -24,6 +24,8 @@ Levels live in `LEVELS` in `src/core.js`: gap, vehicle numbers, pay rate and win
 
 Edit `src/page.html` or `src/core.js`, then run `python3 src/build.py` (needs Pillow). Check the balance with `node src/sim/career.js`.
 
+The third canyon, the Grand Canyon, uses a flying roadster drawn in code (`buildCar` in `src/page.html`). One air tank feeds rear jets on the ramp and belly jets in the air (`JET_GROUND`, `JET_AIR` in `src/core.js`), and the stabilizers upgrade rolls it upright when you let go of lean. `node src/sim/career.js 0 2` tunes it.
+
 The river, its boulders, the balloon that marks the best jump and the canyon's back wall are drawn in code in `src/page.html`. Sponsor contracts, medals (`par` in `LEVELS`) and the flip bonus live in `src/core.js`.
 
 The site is served from the `gh-pages` branch, so push to both: `git push origin main main:gh-pages`.

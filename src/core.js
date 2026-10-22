@@ -64,13 +64,15 @@ const SRJ = (() => {
   };
   const ORDER = ['launcher', 'engine', 'frame', 'rocket'];
   const FRAME0 = { name: UPGRADES.frame.name, blurb: UPGRADES.frame.blurb, unit: UPGRADES.frame.unit };
+  const ENGINE0 = { name: UPGRADES.engine.name, blurb: UPGRADES.engine.blurb, unit: UPGRADES.engine.unit };
+  const ROCKET0 = { name: UPGRADES.rocket.name, blurb: UPGRADES.rocket.blurb, unit: UPGRADES.rocket.unit };
   const MAX_LVL = 5;
   const cost = (k, lvl) => Math.round(UPGRADES[k].base * Math.pow(UPGRADES[k].growth, lvl) / 5) * 5;
   const val = (k, up) => UPGRADES[k].vals[up[k]];
 
   // ---- Levels --------------------------------------------------------
   // Each canyon has its own gap, vehicle, pay rate and par (jumps to cross for a gold and a silver medal). A new vehicle starts the shop again from a higher floor.
-  const T = { CD: 1.5e-5, CL: 1.8e-5, CDI: 2e-5, ROCKET_A: 800, TORQUE: 16, SPIN_DAMP: 2.2, RATE: 1, FLIP_MULT: 0.5, FLIP_STEP: 0.1, FLIP_MIN: 0.1, CLEAN: 0.7, PB_RATE: 2, FRAME_SPIN: 0.2, NOSE: 7, NOSE_AT: -0.55 };
+  const T = { CD: 1.5e-5, CL: 1.8e-5, CDI: 2e-5, ROCKET_A: 800, TORQUE: 16, SPIN_DAMP: 2.2, RATE: 1, FLIP_MULT: 0.5, FLIP_STEP: 0.1, FLIP_MIN: 0.1, CLEAN: 0.7, PB_RATE: 2, FRAME_SPIN: 0.2, NOSE: 7, NOSE_AT: -0.55, JET_GROUND: 1500, JET_AIR: 1400, STAB_D: 0.6 };
   const LEVELS = [
     {
       id: 'snake', name: 'Snake River Canyon', place: 'Twin Falls, Idaho', gapFt: 1600, vehicle: 'scooter', vehicleName: 'scooter', rate: 1, lb: 240,
@@ -84,6 +86,15 @@ const SRJ = (() => {
       vals: { launcher: [1500, 1660, 1820, 1990, 2170, 2360], engine: [300, 390, 490, 600, 720, 850], frame: [1, 1.5, 2, 2.5, 3, 3.5], rocket: [1.0, 1.5, 2.0, 2.6, 3.2, 3.8] },
       base: { launcher: 800, engine: 1000, frame: 1200, rocket: 1500 }, zones: [], par: [26, 33],
     },
+    {
+      // The flying roadster: one tank of compressed air feeds rear jets (boost on the run-up) and belly jets (boost in the air,
+      // pushing out of the floor, so leaning aims them). Stabilizers roll it back upright whenever you let go of lean.
+      id: 'grand', name: 'Grand Canyon', place: 'Arizona', gapFt: 3200, vehicle: 'car', vehicleName: 'flying roadster', rate: 3, lb: 2900,
+      mass: 1.2, lift: 1.3,
+      car: { stab: { name: 'Stabilizers', blurb: 'Let go of lean and the jets roll you back upright' }, tank: { name: 'Air tank', blurb: 'Boost on the ramp for speed, in the air to lift. Same tank' }, motor: { name: 'Motor', blurb: 'Electric shove on the run-up' } },
+      vals: { launcher: [2400, 2600, 2800, 3000, 3200, 3400], engine: [500, 620, 750, 890, 1040, 1200], frame: [0, 3, 5, 7, 9, 11], rocket: [1.2, 1.9, 2.7, 3.5, 4.4, 5.4] },
+      base: { launcher: 1920, engine: 2400, frame: 2880, rocket: 3600 }, zones: [], par: [27, 34],
+    },
   ];
   let level = 0;
   function setLevel(i) {
@@ -93,8 +104,15 @@ const SRJ = (() => {
     W.ZONES = L.zones.map(([a, b, up]) => ({ x0: W.NEAR + a * W.GAP, x1: W.NEAR + b * W.GAP, up }));
     for (const k of ORDER) { UPGRADES[k].vals = L.vals[k]; UPGRADES[k].base = L.base[k]; }
     const f = UPGRADES.frame;
+    const r = UPGRADES.rocket;
     if (L.wings) { f.name = L.wings.name; f.blurb = L.wings.blurb; f.unit = v => (v > 1 ? Math.round((v - 1) * 8) + ' ft span' : 'none'); }
+    else if (L.car) { f.name = L.car.stab.name; f.blurb = L.car.stab.blurb; f.unit = v => (v ? 'grip ' + Math.round(v / 11 * 5) + ' of 5' : 'none'); }
     else { f.name = FRAME0.name; f.blurb = FRAME0.blurb; f.unit = FRAME0.unit; }
+    if (L.car) { r.name = L.car.tank.name; r.blurb = L.car.tank.blurb; r.unit = v => v.toFixed(1) + ' s of air'; }
+    else { r.name = ROCKET0.name; r.blurb = ROCKET0.blurb; r.unit = ROCKET0.unit; }
+    const e = UPGRADES.engine;
+    if (L.car) { e.name = L.car.motor.name; e.blurb = L.car.motor.blurb; e.unit = v => Math.round(v * 1.25) + ' hp'; }
+    else { e.name = ENGINE0.name; e.blurb = ENGINE0.blurb; e.unit = ENGINE0.unit; }
     T.RATE = L.rate; T.PB_RATE = 2 * L.rate;
     return L;
   }
@@ -110,13 +128,13 @@ const SRJ = (() => {
 
   // ---- A run ----------------------------------------------------------
   function newRun(up, power) {
-    const L = LEVELS[level], winged = !!L.wings;
-    const m = winged ? L.mass : val('frame', up), wing = winged ? val('frame', up) : 1;
+    const L = LEVELS[level], winged = !!L.wings, car = !!L.car;
+    const m = winged || car ? L.mass : val('frame', up), wing = winged ? val('frame', up) : car ? L.lift : 1;
     return {
-      mode: 'ground', t: 0, up, mass: m,
+      mode: 'ground', t: 0, up, mass: m, car, stab: car ? val('frame', up) : 0,
       wing,                                             // lift multiplier
       heavy: winged ? (wing - 1) / 2.5 : 0,             // 0 with no wings, 1 with the biggest: how hard the nose drops
-      spinLvl: winged ? 0 : up.frame, stall: false,
+      spinLvl: winged || car ? 0 : up.frame, stall: false,
       x: W.START, y: W.COM_H, a: 0, w: 0,
       v: val('launcher', up) * power / Math.sqrt(m), vx: 0, vy: 0,
       fuel: val('rocket', up), boosting: false,
@@ -139,7 +157,9 @@ const SRJ = (() => {
     s.t += dt;
     if (s.mode === 'ground') {
       const th = slope(s.x);
-      const acc = val('engine', s.up) / s.mass - W.G * Math.sin(th);
+      let acc = val('engine', s.up) / s.mass - W.G * Math.sin(th);
+      s.boosting = !!(s.car && input.boost && s.fuel > 0); // the roadster's rear jets work on the ground too
+      if (s.boosting) { s.fuel = Math.max(0, s.fuel - dt); s.boosted = true; acc += T.JET_GROUND; }
       s.v += acc * dt;
       if (s.v < 30) { finish(s, 'stall', 0); return; }
       s.x += s.v * Math.cos(th) * dt;
@@ -168,12 +188,13 @@ const SRJ = (() => {
     const drag = (T.CD + T.CDI * Math.sin(sa) * Math.sin(sa)) * sp;
     ax -= drag * s.vx; ay -= drag * s.vy;
     const lift = T.CL * s.wing / s.mass * sp * sp * liftK;
-    s.stall = s.wing > 1 && aw > 0.9 && aw < 2.2 && sp > 350;
+    s.stall = !s.car && s.wing > 1 && aw > 0.9 && aw < 2.2 && sp > 350;
     ax += -lift * Math.sin(va); ay += lift * Math.cos(va);
     s.boosting = !!(input.boost && s.fuel > 0);
     if (s.boosting) {
       s.fuel = Math.max(0, s.fuel - dt); s.boosted = true;
-      ax += T.ROCKET_A * Math.cos(s.a); ay += T.ROCKET_A * Math.sin(s.a);
+      if (s.car) { ax -= T.JET_AIR * Math.sin(s.a); ay += T.JET_AIR * Math.cos(s.a); } // belly jets push out of the floor
+      else { ax += T.ROCKET_A * Math.cos(s.a); ay += T.ROCKET_A * Math.sin(s.a); }
     }
     s.zone = 0;
     for (const z of W.ZONES) if (s.x > z.x0 && s.x < z.x1) { // the air eases in over the first and last 250 px of a zone
@@ -187,6 +208,8 @@ const SRJ = (() => {
     s.w += tilt * T.TORQUE * (1 + T.FRAME_SPIN * s.spinLvl * commit) * dt;
     // wings make it nose-heavy: left alone it swings to point below its flight path and dives
     if (s.heavy) s.w += T.NOSE * s.heavy * Math.sin(va + T.NOSE_AT - s.a) * dt;
+    // stabilizers: hands off the lean and the jets roll it back to wheels-down, the shorter way round
+    if (s.stab && !tilt) s.w += (-s.stab * Math.sin(s.a) - T.STAB_D * s.stab * s.w * Math.cos(s.a) * 0.15) * dt;
     s.w *= Math.exp(-T.SPIN_DAMP * dt);
     s.a += s.w * dt; s.rot += s.w * dt;
     // flips count all the way down, but they are only paid if he ends the jump the right way up (see finish)
@@ -273,7 +296,7 @@ const SRJ = (() => {
       case 'dist': return c.t >= W.GAP_FT ? 'Reach the far side' : 'Jump past ' + ft(c.t);
       case 'alt': return 'Climb ' + ft(c.t) + ' above the rim';
       case 'air': return 'Hang in the air ' + c.t.toFixed(1) + ' s';
-      case 'dry': return ft(c.t) + ', no rocket';
+      case 'dry': return ft(c.t) + (LEVELS[level].car ? ', no jets' : ', no rocket');
       case 'flips': return fl(c.t) + ', landed upright';
       case 'farflip': return fl(c.n) + ' landed upright past ' + ft(c.t);
     }
