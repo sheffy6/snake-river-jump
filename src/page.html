@@ -302,7 +302,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   const VEH = {
     scooter: [['bwheel', -98, 53, true], ['fwheel', 97.5, 57.5, true], ['bike', -12, 0.5, false]],
     mower: [['mwB', -94, 51, true], ['mwF', 93, 68, true], ['mower', -10, 15, false]],
-    car: [['cwB', -97, 59, true], ['cwF', 97, 59, true], ['car', 0, 0, false], ['carDoor', 0, 0, false, true]], // the last one is drawn in front of the rider
+    car: [['carWell', 0, 0, false], ['cwB', -130, 49, true], ['cwF', 130, 49, true], ['car', 0, 0, false], ['carDoor', 0, 0, false, true]], // the last one is drawn in front of the rider
   };
   const veh = () => VEH[L.vehicle];
   // sprite pieces: centre offset from the centre of mass (sprite pixels, y down)
@@ -558,7 +558,7 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   function flame(s) {
     const c = Math.cos(s.a), sn = Math.sin(s.a);
     if (s.car) { // compressed air: white puffs, from the tail on the ramp and from the belly in the air
-      const ground = s.mode === 'ground', [lx, ly] = ground ? [-226, Math.random() < 0.5 ? 22 : 44] : [Math.random() < 0.5 ? -30 : 30, 72];
+      const ground = s.mode === 'ground', [lx, ly] = ground ? [-306, Math.random() < 0.5 ? 10 : 34] : [Math.random() < 0.5 ? -40 : 40, 72];
       const px = s.x + lx * c + ly * sn, py = s.y + lx * sn - ly * c, dx = ground ? -c : sn, dy = ground ? -sn : -c;
       const vx0 = ground ? s.v * Math.cos(s.a) : s.vx, vy0 = ground ? s.v * Math.sin(s.a) : s.vy;
       fx.push({ t: 'gas', x: px, y: py, vx: vx0 * 0.6 + dx * 900 + (Math.random() - 0.5) * 220, vy: vy0 * 0.6 + dy * 900 + (Math.random() - 0.5) * 220, life: 0, max: 0.35 + Math.random() * 0.25, r: 14 + Math.random() * 12 });
@@ -813,38 +813,45 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
   // Stand-in flying roadster, drawn round the same rider pose: low open body, seat under him, wheel at his hands,
   // jet nozzles at the tail and under the floor. The door is a separate piece drawn in front of his legs.
   function buildCar() {
-    const mk = () => { const c = document.createElement('canvas'); c.width = 440; c.height = 220; const g = c.getContext('2d'); g.lineJoin = 'round'; g.lineCap = 'round'; g.translate(220, 110); return [c, g]; };
-    const TEAL = '#2a8c9a', TEAL_D = '#1b5d67', TEAL_L = '#6cc6d1', INK = '#26262b', STEEL = '#9a9ca4', STEEL_D = '#55565c', GLASS = 'rgba(190,226,236,0.55)';
-    const body = g => { // side profile, wheel arches cut out
-      g.beginPath(); g.moveTo(206, 40); g.lineTo(200, 58); g.lineTo(143, 58); g.arc(97, 59, 45, 0, Math.PI, true); g.lineTo(-52, 60); g.arc(-97, 59, 45, 0, Math.PI, true);
-      g.lineTo(-202, 58); g.lineTo(-208, 18); g.quadraticCurveTo(-200, 0, -175, -2); g.lineTo(-128, -6); g.quadraticCurveTo(-116, -8, -112, -6); g.lineTo(52, -6);
-      g.quadraticCurveTo(70, 4, 120, 12); g.quadraticCurveTo(190, 22, 206, 40); g.closePath();
+    // drawn in sprite pixels round the centre of mass: wheels at x = ±130, centre y 49, radius 46, so the tyres touch y = 95
+    const mk = () => { const c = document.createElement('canvas'); c.width = 640; c.height = 260; const g = c.getContext('2d'); g.lineJoin = 'round'; g.lineCap = 'round'; g.translate(320, 130); return [c, g]; };
+    const TEAL = '#2a8c9a', TEAL_D = '#1b5d67', TEAL_L = '#6cc6d1', INK = '#26262b', STEEL = '#9a9ca4', STEEL_D = '#55565c', GLASS = 'rgba(190,226,236,0.6)';
+    const WB = 130, WY = 49, ARCH = 56;
+    const body = g => { // side profile with both wheel arches cut out
+      g.beginPath(); g.moveTo(284, 32); g.lineTo(277, 58); g.lineTo(WB + ARCH, 58); g.arc(WB, WY, ARCH, 0.16, Math.PI - 0.16, true); g.lineTo(-WB + ARCH, 60);
+      g.arc(-WB, WY, ARCH, 0.16, Math.PI - 0.16, true); g.lineTo(-278, 58); g.lineTo(-286, 14); g.quadraticCurveTo(-276, -8, -246, -10); g.lineTo(-128, -14);
+      g.lineTo(62, -14); g.quadraticCurveTo(120, -6, 180, 4); g.quadraticCurveTo(262, 14, 284, 32); g.closePath();
     };
+    const arches = g => { g.globalCompositeOperation = 'destination-out'; for (const x of [-WB, WB]) { g.beginPath(); g.arc(x, WY, ARCH, 0, 7); g.fill(); } g.globalCompositeOperation = 'source-over'; };
     const [c, g] = mk();
     // jet nozzles: two out of the tail, two under the floor
-    for (const y of [22, 44]) { g.beginPath(); g.moveTo(-204, y - 9); g.lineTo(-226, y - 13); g.lineTo(-226, y + 13); g.lineTo(-204, y + 9); g.closePath(); g.fillStyle = STEEL; g.fill(); g.strokeStyle = STEEL_D; g.lineWidth = 3; g.stroke(); }
-    for (const x of [-30, 30]) { g.beginPath(); g.moveTo(x - 10, 58); g.lineTo(x - 14, 72); g.lineTo(x + 14, 72); g.lineTo(x + 10, 58); g.closePath(); g.fillStyle = STEEL; g.fill(); g.strokeStyle = STEEL_D; g.lineWidth = 3; g.stroke(); }
+    for (const y of [10, 34]) { g.beginPath(); g.moveTo(-282, y - 9); g.lineTo(-306, y - 14); g.lineTo(-306, y + 14); g.lineTo(-282, y + 9); g.closePath(); g.fillStyle = STEEL; g.fill(); g.strokeStyle = STEEL_D; g.lineWidth = 3; g.stroke(); }
+    for (const x of [-40, 40]) { g.beginPath(); g.moveTo(x - 11, 58); g.lineTo(x - 15, 72); g.lineTo(x + 15, 72); g.lineTo(x + 11, 58); g.closePath(); g.fillStyle = STEEL; g.fill(); g.strokeStyle = STEEL_D; g.lineWidth = 3; g.stroke(); }
     // seat back and steering wheel, behind him
-    g.beginPath(); g.moveTo(-126, -6); g.lineTo(-118, -58); g.quadraticCurveTo(-112, -66, -102, -58); g.lineTo(-98, -6); g.closePath(); g.fillStyle = INK; g.fill();
-    g.beginPath(); g.moveTo(66, 0); g.lineTo(54, -40); g.strokeStyle = INK; g.lineWidth = 6; g.stroke();
+    g.beginPath(); g.moveTo(-128, -14); g.lineTo(-120, -64); g.quadraticCurveTo(-112, -72, -102, -64); g.lineTo(-96, -14); g.closePath(); g.fillStyle = INK; g.fill();
+    g.beginPath(); g.moveTo(84, -12); g.lineTo(56, -42); g.strokeStyle = INK; g.lineWidth = 6; g.stroke();
     g.save(); g.translate(52, -46); g.rotate(0.35); g.beginPath(); g.ellipse(0, 0, 6, 19, 0, 0, 7); g.fillStyle = '#3a3a40'; g.fill(); g.strokeStyle = INK; g.lineWidth = 3; g.stroke(); g.restore();
     body(g); g.fillStyle = TEAL; g.fill();
     g.save(); g.clip(); // shading: a darker lower half and a bright crease along the shoulder
-    g.fillStyle = TEAL_D; g.fillRect(-230, 34, 460, 40);
-    g.beginPath(); g.moveTo(-200, 10); g.lineTo(-112, 4); g.lineTo(60, 4); g.quadraticCurveTo(130, 18, 200, 34); g.strokeStyle = TEAL_L; g.lineWidth = 5; g.stroke();
+    g.fillStyle = TEAL_D; g.fillRect(-300, 30, 600, 40);
+    g.beginPath(); g.moveTo(-278, 2); g.lineTo(-128, -4); g.lineTo(62, -4); g.quadraticCurveTo(170, 10, 280, 30); g.strokeStyle = TEAL_L; g.lineWidth = 5; g.stroke();
     g.restore();
     body(g); g.strokeStyle = INK; g.lineWidth = 4.5; g.stroke();
-    // headlight, tail light, and the windscreen raked back over the dash
-    g.beginPath(); g.ellipse(196, 34, 9, 5, 0.35, 0, 7); g.fillStyle = '#fff6c8'; g.fill(); g.strokeStyle = INK; g.lineWidth = 2.5; g.stroke();
-    g.fillStyle = '#d23a3a'; g.fillRect(-209, 6, 7, 12);
-    g.beginPath(); g.moveTo(66, -4); g.lineTo(98, -54); g.lineTo(108, -52); g.lineTo(84, 2); g.closePath(); g.fillStyle = GLASS; g.fill(); g.strokeStyle = INK; g.lineWidth = 3.5; g.stroke();
+    // headlight and tail light
+    g.beginPath(); g.ellipse(272, 30, 11, 6, 0.3, 0, 7); g.fillStyle = '#fff6c8'; g.fill(); g.strokeStyle = INK; g.lineWidth = 2.5; g.stroke();
+    g.fillStyle = '#d23a3a'; g.fillRect(-289, -4, 8, 14);
+    // windscreen: rakes back from the bonnet towards the driver
+    g.beginPath(); g.moveTo(112, -8); g.lineTo(70, -64); g.lineTo(80, -67); g.lineTo(126, -6); g.closePath(); g.fillStyle = GLASS; g.fill(); g.strokeStyle = INK; g.lineWidth = 3.5; g.stroke();
     img.car = c;
-    const [d, h] = mk(); // the door, over his legs
-    h.beginPath(); h.moveTo(-112, -6); h.lineTo(52, -6); h.quadraticCurveTo(66, 2, 70, 14); h.lineTo(58, 56); h.lineTo(-52, 60); h.lineTo(-112, 56); h.closePath();
-    h.fillStyle = TEAL; h.fill(); h.save(); h.clip(); h.fillStyle = TEAL_D; h.fillRect(-120, 34, 200, 40); h.beginPath(); h.moveTo(-112, 4); h.lineTo(62, 4); h.strokeStyle = TEAL_L; h.lineWidth = 5; h.stroke(); h.restore();
-    h.beginPath(); h.moveTo(-112, -6); h.lineTo(52, -6); h.quadraticCurveTo(66, 2, 70, 14); h.strokeStyle = INK; h.lineWidth = 4.5; h.stroke();
-    h.beginPath(); h.moveTo(52, -4); h.lineTo(50, 54); h.moveTo(-108, -4); h.lineTo(-108, 54); h.strokeStyle = 'rgba(38,38,43,0.55)'; h.lineWidth = 2.5; h.stroke();
-    h.fillStyle = INK; h.fillRect(20, 12, 18, 5); // door handle
+    const [d, h] = mk(); // the door, over his legs, cut round the rear wheel arch
+    const door = () => { h.beginPath(); h.moveTo(-128, -14); h.lineTo(62, -14); h.quadraticCurveTo(80, -10, 86, 4); h.lineTo(74, 58); h.lineTo(-WB + ARCH, 60); h.lineTo(-128, 56); h.closePath(); };
+    door(); h.fillStyle = TEAL; h.fill();
+    h.save(); door(); h.clip(); h.fillStyle = TEAL_D; h.fillRect(-140, 30, 240, 40); h.beginPath(); h.moveTo(-130, -4); h.lineTo(62, -4); h.quadraticCurveTo(76, -2, 84, 2); h.strokeStyle = TEAL_L; h.lineWidth = 5; h.stroke(); h.restore();
+    h.beginPath(); h.moveTo(-128, -14); h.lineTo(62, -14); h.quadraticCurveTo(80, -10, 86, 4); h.strokeStyle = INK; h.lineWidth = 4.5; h.stroke();
+    h.beginPath(); h.moveTo(70, -6); h.lineTo(66, 54); h.moveTo(-68, -12); h.lineTo(-68, 56); h.strokeStyle = 'rgba(38,38,43,0.55)'; h.lineWidth = 2.5; h.stroke(); // door shut lines
+    h.fillStyle = INK; h.fillRect(30, 8, 20, 5); // door handle
+    arches(h);
+    h.beginPath(); h.arc(-WB, WY, ARCH, Math.PI + 0.75, Math.PI * 2 - 0.2); h.strokeStyle = INK; h.lineWidth = 4.5; h.stroke(); // re-line the cut
     img.carDoor = d;
     const wheel = r => {
       const w = document.createElement('canvas'); w.width = w.height = 2 * r + 6; const q = w.getContext('2d'); q.translate(r + 3, r + 3);
@@ -854,7 +861,10 @@ kbd { font-family: var(--ui); font-weight: 700; background: var(--paper-2); bord
       q.beginPath(); q.arc(0, 0, r * 0.13, 0, 7); q.fillStyle = TEAL; q.fill();
       return w;
     };
-    img.cwB = wheel(36); img.cwF = wheel(36);
+    img.cwB = wheel(46); img.cwF = wheel(46);
+    const [wl, q] = mk(); // dark wheel wells, drawn behind the wheels so the arches are not see-through
+    q.fillStyle = '#1f1f24'; for (const x of [-WB, WB]) { q.beginPath(); q.arc(x, WY, ARCH - 1, Math.PI, 0); q.lineTo(x + ARCH - 1, 60); q.lineTo(x - ARCH + 1, 60); q.closePath(); q.fill(); }
+    img.carWell = wl;
   }
   // One drawn piece laid along the stick between two joints. A and B are that stick's ends in rider.png pixels,
   // (ox, oy) is where the piece sits in rider.png, and the optional crop takes part of an image.

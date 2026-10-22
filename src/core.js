@@ -90,7 +90,7 @@ const SRJ = (() => {
       // The flying roadster: one tank of compressed air feeds rear jets (boost on the run-up) and belly jets (boost in the air,
       // pushing out of the floor, so leaning aims them). Stabilizers roll it back upright whenever you let go of lean.
       id: 'grand', name: 'Grand Canyon', place: 'Arizona', gapFt: 3200, vehicle: 'car', vehicleName: 'flying roadster', rate: 3, lb: 2900,
-      mass: 1.2, lift: 1.3,
+      mass: 1.2, lift: 1.3, halfWb: 130, // a longer wheelbase than the scooter's
       car: { stab: { name: 'Stabilizers', blurb: 'Let go of lean and the jets roll you back upright' }, tank: { name: 'Air tank', blurb: 'Boost on the ramp for speed, in the air to lift. Same tank' }, motor: { name: 'Motor', blurb: 'Electric shove on the run-up' } },
       vals: { launcher: [2400, 2600, 2800, 3000, 3200, 3400], engine: [500, 620, 750, 890, 1040, 1200], frame: [0, 3, 5, 7, 9, 11], rocket: [1.2, 1.9, 2.7, 3.5, 4.4, 5.4] },
       base: { launcher: 1920, engine: 2400, frame: 2880, rocket: 3600 }, zones: [], par: [27, 34],
@@ -100,7 +100,7 @@ const SRJ = (() => {
   function setLevel(i) {
     level = Math.max(0, Math.min(LEVELS.length - 1, i | 0));
     const L = LEVELS[level];
-    W.GAP_FT = L.gapFt; W.GAP = Math.round(L.gapFt * W.PXFT); W.FAR = W.NEAR + W.GAP; W.LB = L.lb;
+    W.HALF_WB = L.halfWb || 97; W.GAP_FT = L.gapFt; W.GAP = Math.round(L.gapFt * W.PXFT); W.FAR = W.NEAR + W.GAP; W.LB = L.lb;
     W.ZONES = L.zones.map(([a, b, up]) => ({ x0: W.NEAR + a * W.GAP, x1: W.NEAR + b * W.GAP, up }));
     for (const k of ORDER) { UPGRADES[k].vals = L.vals[k]; UPGRADES[k].base = L.base[k]; }
     const f = UPGRADES.frame;
